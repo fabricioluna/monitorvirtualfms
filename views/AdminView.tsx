@@ -1,13 +1,16 @@
 
 import React, { useState } from 'react';
 import { Question, OsceStation, SimulationInfo, Summary, QuizResult, ReferenceMaterial } from '../types.ts';
+import { Trash2, Plus, BookOpen, Layers, BarChart3, FileText, ClipboardList, Stethoscope, Search } from 'lucide-react';
 
 interface AdminViewProps {
   questions: Question[];
   osceStations: OsceStation[];
   disciplines: SimulationInfo[];
+  summaries: Summary[];
   quizResults: QuizResult[];
   onAddSummary: (s: Summary) => void;
+  onRemoveSummary: (id: string) => void;
   onAddQuestions: (qs: Question[]) => void;
   onUpdateQuestion: (q: Question) => void;
   onAddOsceStations: (os: OsceStation[]) => void;
@@ -17,27 +20,46 @@ interface AdminViewProps {
   onClearResults: () => void;
   onAddTheme: (disciplineId: string, themeName: string) => void;
   onRemoveTheme: (disciplineId: string, themeName: string) => void;
-  onUpdateTheme: (disciplineId: string, oldTheme: string, newTheme: string) => void;
   onUpdateReferences: (disciplineId: string, refs: ReferenceMaterial[]) => void;
   onBack: () => void;
 }
 
 const AdminView: React.FC<AdminViewProps> = ({
   questions,
+  osceStations,
   disciplines,
+  summaries,
   quizResults,
   onAddSummary,
+  onRemoveSummary,
   onAddQuestions,
   onRemoveQuestion,
+  onRemoveOsceStation,
   onClearDatabase,
   onClearResults,
+  onAddTheme,
+  onRemoveTheme,
+  onUpdateReferences,
   onBack
 }) => {
   const [isAuthorized, setIsAuthorized] = useState(() => sessionStorage.getItem('fms_admin_auth') === 'true');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'questions' | 'osce' | 'stats' | 'references' | 'materials'>('stats');
+  const [activeTab, setActiveTab] = useState<'questions' | 'osce' | 'stats' | 'references' | 'materials' | 'themes'>('stats');
   
+  // Filtros de Lista
+  const [listFilter, setListFilter] = useState('');
+  const [discFilter, setDiscFilter] = useState('');
+
+  // States para Formulários
+  const [selectedDiscId, setSelectedDiscId] = useState('');
+  const [newTheme, setNewTheme] = useState('');
+  
+  const [refTitle, setRefTitle] = useState('');
+  const [refAuthor, setRefAuthor] = useState('');
+  const [refType, setRefType] = useState<'book' | 'article' | 'link' | 'video'>('book');
+  const [refUrl, setRefUrl] = useState('');
+
   const [qDiscipline, setQDiscipline] = useState('');
   const [qTheme, setQTheme] = useState('');
   const [qFile, setQFile] = useState<File | null>(null);
@@ -58,10 +80,37 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
+  const handleAddTheme = () => {
+    if (!selectedDiscId || !newTheme) return;
+    onAddTheme(selectedDiscId, newTheme);
+    setNewTheme('');
+  };
+
+  const handleAddReference = () => {
+    if (!selectedDiscId || !refTitle) return;
+    const currentDisc = disciplines.find(d => d.id === selectedDiscId);
+    const newRef: ReferenceMaterial = {
+      id: `ref_${Date.now()}`,
+      title: refTitle,
+      author: refAuthor,
+      type: refType,
+      url: refUrl
+    };
+    const updatedRefs = [...(currentDisc?.references || []), newRef];
+    onUpdateReferences(selectedDiscId, updatedRefs);
+    setRefTitle(''); setRefAuthor(''); setRefUrl('');
+  };
+
+  const handleRemoveReference = (refId: string) => {
+    const currentDisc = disciplines.find(d => d.id === selectedDiscId);
+    if (!currentDisc) return;
+    const updatedRefs = (currentDisc.references || []).filter(r => r.id !== refId);
+    onUpdateReferences(selectedDiscId, updatedRefs);
+  };
+
   const handleQuestionImport = (e: React.FormEvent) => {
     e.preventDefault();
     if (!qFile || !qDiscipline || !qTheme) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -82,40 +131,24 @@ const AdminView: React.FC<AdminViewProps> = ({
           };
         });
         onAddQuestions(newQs);
-        alert(`${newQs.length} questões adicionadas localmente.`);
+        alert(`${newQs.length} questões adicionadas.`);
         setQFile(null);
       } catch (err) { alert('Erro no CSV.'); }
     };
     reader.readAsText(qFile);
   };
 
-  const handleAddMaterial = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!matDisc || !matLabel || !matUrl) return;
-    onAddSummary({
-      id: `mat_${Date.now()}`,
-      disciplineId: matDisc,
-      label: matLabel,
-      url: matUrl,
-      type: matType,
-      isFolder: isFolder,
-      date: new Date().toLocaleDateString('pt-BR')
-    });
-    setMatLabel('');
-    setMatUrl('');
-    alert('Material adicionado!');
-  };
-
   if (!isAuthorized) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
-        <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 w-full max-w-md">
-          <h2 className="text-2xl font-black text-[#003366] text-center mb-8">ADMIN</h2>
+        <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 w-full max-w-md text-center">
+          <div className="w-20 h-20 bg-[#003366] text-white rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6 shadow-xl">🔐</div>
+          <h2 className="text-2xl font-black text-[#003366] mb-8 uppercase tracking-tighter">Acesso Restrito</h2>
           <form onSubmit={handleLogin} className="space-y-4">
-            <input type="text" placeholder="Usuário" value={login} onChange={e => setLogin(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl outline-none" />
-            <input type="password" placeholder="Senha" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl outline-none" />
-            <button type="submit" className="w-full bg-[#003366] text-white py-4 rounded-xl font-bold">Entrar</button>
-            <button type="button" onClick={onBack} className="w-full text-xs text-gray-400 mt-2">Voltar</button>
+            <input type="text" placeholder="Usuário" value={login} onChange={e => setLogin(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl outline-none border-2 border-transparent focus:border-[#D4A017] font-bold" />
+            <input type="password" placeholder="Senha" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl outline-none border-2 border-transparent focus:border-[#D4A017] font-bold" />
+            <button type="submit" className="w-full bg-[#003366] text-white py-4 rounded-xl font-bold uppercase tracking-widest shadow-lg hover:bg-[#D4A017] hover:text-[#003366] transition-all">Entrar</button>
+            <button type="button" onClick={onBack} className="w-full text-[10px] font-black text-gray-400 mt-4 uppercase tracking-widest">Voltar ao Portal</button>
           </form>
         </div>
       </div>
@@ -123,64 +156,283 @@ const AdminView: React.FC<AdminViewProps> = ({
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="flex justify-between items-center mb-10 border-b pb-8">
-        <button onClick={onBack} className="text-[#003366] font-bold">← Sair</button>
-        <h2 className="text-3xl font-black text-[#003366]">PAINEL ADMIN LOCAL</h2>
+    <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 border-b pb-8 gap-4">
+        <div className="flex items-center gap-4">
+           <button onClick={onBack} className="bg-gray-100 p-3 rounded-xl hover:bg-gray-200 transition-all text-[#003366]">←</button>
+           <div>
+             <h2 className="text-3xl font-black text-[#003366] tracking-tighter uppercase">Painel de Controle</h2>
+             <p className="text-[10px] font-black text-[#D4A017] uppercase tracking-widest">Gestão de Dados em Nuvem</p>
+           </div>
+        </div>
         <div className="flex gap-2">
-           <button onClick={onClearDatabase} className="bg-red-500 text-white px-4 py-2 rounded text-[10px] font-bold">RESETAR APP</button>
+           <button onClick={onClearResults} className="bg-orange-100 text-orange-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-200 transition-all">Limpar Resultados</button>
+           <button onClick={onClearDatabase} className="bg-red-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 shadow-lg transition-all">Resetar Banco</button>
         </div>
       </div>
 
-      <div className="flex gap-3 mb-12">
-        <button onClick={() => setActiveTab('stats')} className={`px-6 py-3 rounded-xl font-bold ${activeTab === 'stats' ? 'bg-[#D4A017]' : 'bg-gray-100'}`}>Stats</button>
-        <button onClick={() => setActiveTab('questions')} className={`px-6 py-3 rounded-xl font-bold ${activeTab === 'questions' ? 'bg-[#003366] text-white' : 'bg-gray-100'}`}>Questões</button>
-        <button onClick={() => setActiveTab('materials')} className={`px-6 py-3 rounded-xl font-bold ${activeTab === 'materials' ? 'bg-[#003366] text-white' : 'bg-gray-100'}`}>Materiais</button>
-      </div>
+      <nav className="flex flex-wrap gap-2 mb-12">
+        {[
+          { id: 'stats', label: 'Estatísticas', icon: <BarChart3 size={16}/> },
+          { id: 'themes', label: 'Temas/Eixos', icon: <Layers size={16}/> },
+          { id: 'questions', label: 'Questões', icon: <FileText size={16}/> },
+          { id: 'osce', label: 'OSCE', icon: <Stethoscope size={16}/> },
+          { id: 'references', label: 'Referências', icon: <BookOpen size={16}/> },
+          { id: 'materials', label: 'Materiais', icon: <ClipboardList size={16}/> },
+        ].map(tab => (
+          <button 
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id as any); setDiscFilter(''); }} 
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all
+              ${activeTab === tab.id ? 'bg-[#003366] text-white shadow-xl scale-105' : 'bg-white text-gray-400 border border-gray-100 hover:border-gray-300'}
+            `}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </nav>
 
+      {/* VIEW: ESTATÍSTICAS */}
       {activeTab === 'stats' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-[#003366] p-8 rounded-3xl text-white">
-            <p className="text-xs uppercase opacity-60">Resultados de Simulados</p>
-            <h4 className="text-5xl font-black">{quizResults.length}</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in duration-500">
+          <div className="bg-[#003366] p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
+             <div className="absolute -right-4 -bottom-4 text-6xl opacity-10">📝</div>
+             <p className="text-[9px] font-black uppercase tracking-widest opacity-60 mb-2">Simulados Realizados</p>
+             <h4 className="text-5xl font-black">{quizResults.length}</h4>
           </div>
-          <div className="bg-white p-8 rounded-3xl border">
-            <p className="text-xs uppercase text-gray-400">Total de Questões em Memória</p>
-            <h4 className="text-5xl font-black text-[#003366]">{questions.length}</h4>
+          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Total de Questões</p>
+             <h4 className="text-5xl font-black text-[#003366]">{questions.length}</h4>
+          </div>
+          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Estações OSCE</p>
+             <h4 className="text-5xl font-black text-[#003366]">{osceStations.length}</h4>
+          </div>
+          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Disciplinas Ativas</p>
+             <h4 className="text-5xl font-black text-[#D4A017]">{disciplines.filter(d => d.status === 'active').length}</h4>
           </div>
         </div>
       )}
 
+      {/* VIEW: TEMAS */}
+      {activeTab === 'themes' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-right-10 duration-500">
+          <div className="lg:col-span-1 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
+            <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Novo Eixo Temático</h3>
+            <div className="space-y-4">
+              <select value={selectedDiscId} onChange={e => setSelectedDiscId(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#D4A017]">
+                <option value="">Selecione a Disciplina...</option>
+                {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+              </select>
+              <input type="text" placeholder="Nome do Tema (ex: Fisiologia Renal)" value={newTheme} onChange={e => setNewTheme(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#D4A017]" />
+              <button onClick={handleAddTheme} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center justify-center gap-2 hover:bg-[#D4A017] transition-all">
+                <Plus size={16}/> Adicionar Tema
+              </button>
+            </div>
+          </div>
+          <div className="lg:col-span-2 space-y-4">
+            {selectedDiscId ? (
+              <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm">
+                <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Temas de {disciplines.find(d => d.id === selectedDiscId)?.title}</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {disciplines.find(d => d.id === selectedDiscId)?.themes.map(theme => (
+                    <div key={theme} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border group hover:border-[#D4A017] transition-all">
+                      <span className="text-xs font-bold text-gray-700">{theme}</span>
+                      <button onClick={() => confirm(`Excluir tema "${theme}"?`) && onRemoveTheme(selectedDiscId, theme)} className="text-red-300 hover:text-red-500 transition-colors">
+                        <Trash2 size={16}/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 h-64 rounded-[2.5rem] border-2 border-dashed flex flex-col items-center justify-center text-gray-400">
+                 <Layers size={48} className="mb-4 opacity-20"/>
+                 <p className="font-bold italic">Selecione uma disciplina para gerenciar temas</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: QUESTÕES (IMPORT E GESTÃO) */}
       {activeTab === 'questions' && (
-        <div className="bg-white p-8 rounded-3xl border">
-          <h3 className="text-xl font-black mb-6">IMPORTAR QUESTÕES (.CSV)</h3>
-          <form onSubmit={handleQuestionImport} className="space-y-4 max-w-md">
-            <select value={qDiscipline} onChange={e => setQDiscipline(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl" required>
-              <option value="">Selecione Disciplina...</option>
-              {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-            </select>
-            <select value={qTheme} onChange={e => setQTheme(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl" required>
-              <option value="">Selecione Tema...</option>
-              {disciplines.find(d => d.id === qDiscipline)?.themes.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <input type="file" accept=".csv" onChange={e => setQFile(e.target.files ? e.target.files[0] : null)} />
-            <button type="submit" className="w-full bg-[#003366] text-white py-4 rounded-xl font-bold">Processar Arquivo</button>
-          </form>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in zoom-in duration-500">
+          <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
+            <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Importar CSV</h3>
+            <form onSubmit={handleQuestionImport} className="space-y-4">
+              <select value={qDiscipline} onChange={e => setQDiscipline(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
+                <option value="">Disciplina...</option>
+                {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+              </select>
+              <select value={qTheme} onChange={e => setQTheme(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
+                <option value="">Eixo Temático...</option>
+                {disciplines.find(d => d.id === qDiscipline)?.themes.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <input type="file" accept=".csv" onChange={e => setQFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" />
+              <button type="submit" disabled={!qFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">Subir Questões 🚀</button>
+            </form>
+          </div>
+          <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
+             <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter">Gestão de Questões</h3>
+                <select value={discFilter} onChange={e => setDiscFilter(e.target.value)} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]">
+                  <option value="">Todas Disciplinas</option>
+                  {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                </select>
+             </div>
+             <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
+                {questions.filter(q => !discFilter || q.disciplineId === discFilter).map(q => (
+                  <div key={q.id} className="p-4 bg-gray-50 rounded-2xl border flex justify-between items-start gap-4 group hover:border-red-100 transition-all">
+                    <div>
+                      <p className="text-xs font-bold text-gray-700 leading-snug">{q.q}</p>
+                      <div className="flex gap-2 mt-2">
+                         <span className="text-[8px] font-black uppercase tracking-widest bg-white px-2 py-0.5 rounded border text-[#003366]">{q.disciplineId}</span>
+                         <span className="text-[8px] font-black uppercase tracking-widest bg-white px-2 py-0.5 rounded border text-[#D4A017]">{q.theme}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => confirm("Excluir esta questão?") && onRemoveQuestion(q.id)} className="text-red-300 hover:text-red-500 transition-colors pt-1">
+                      <Trash2 size={16}/>
+                    </button>
+                  </div>
+                ))}
+                {questions.length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma questão encontrada.</p>}
+             </div>
+          </div>
         </div>
       )}
 
+      {/* VIEW: OSCE */}
+      {activeTab === 'osce' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-10 duration-500">
+           <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
+              <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Adicionar Estação</h3>
+              <p className="text-[10px] text-gray-400 font-bold uppercase mb-4">A ferramenta de criação manual de estações está sendo otimizada. Por enquanto, as estações são carregadas via script de dados.</p>
+           </div>
+           <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
+              <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Estações Cadastradas</h3>
+              <div className="space-y-4">
+                 {osceStations.map(station => (
+                   <div key={station.id} className="p-5 bg-gray-50 rounded-[1.5rem] border flex justify-between items-center hover:border-red-100 group transition-all">
+                      <div>
+                        <h4 className="font-bold text-[#003366] text-sm">{station.title}</h4>
+                        <p className="text-[9px] font-black uppercase text-[#D4A017] tracking-widest">{station.theme}</p>
+                      </div>
+                      <button onClick={() => confirm("Excluir esta estação?") && onRemoveOsceStation(station.id)} className="text-red-300 hover:text-red-500">
+                        <Trash2 size={18}/>
+                      </button>
+                   </div>
+                 ))}
+                 {osceStations.length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma estação cadastrada.</p>}
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* VIEW: REFERÊNCIAS */}
+      {activeTab === 'references' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-10 duration-500">
+          <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
+            <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Nova Referência</h3>
+            <div className="space-y-4">
+              <select value={selectedDiscId} onChange={e => setSelectedDiscId(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#D4A017]">
+                <option value="">Disciplina...</option>
+                {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+              </select>
+              <input type="text" placeholder="Título do Material" value={refTitle} onChange={e => setRefTitle(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm" />
+              <input type="text" placeholder="Autor (opcional)" value={refAuthor} onChange={e => setRefAuthor(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm" />
+              <select value={refType} onChange={e => setRefType(e.target.value as any)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm">
+                <option value="book">Livro</option>
+                <option value="article">Artigo/PDF</option>
+                <option value="link">Link Externo</option>
+                <option value="video">Vídeo</option>
+              </select>
+              <input type="url" placeholder="URL (opcional)" value={refUrl} onChange={e => setRefUrl(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm" />
+              <button onClick={handleAddReference} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all">
+                Salvar Referência
+              </button>
+            </div>
+          </div>
+          <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
+            {selectedDiscId ? (
+              <>
+                <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Bibliografia de {disciplines.find(d => d.id === selectedDiscId)?.title}</h3>
+                <div className="space-y-3">
+                  {(disciplines.find(d => d.id === selectedDiscId)?.references || []).map(ref => (
+                    <div key={ref.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border group hover:border-red-100 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="text-xl">{ref.type === 'book' ? '📖' : '🔗'}</div>
+                        <div>
+                          <p className="text-sm font-black text-[#003366]">{ref.title}</p>
+                          <p className="text-[9px] text-gray-400 font-bold uppercase">{ref.author || 'Sem Autor'}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => handleRemoveReference(ref.id)} className="text-red-300 hover:text-red-500 transition-colors">
+                        <Trash2 size={18}/>
+                      </button>
+                    </div>
+                  ))}
+                  {(disciplines.find(d => d.id === selectedDiscId)?.references || []).length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma referência cadastrada.</p>}
+                </div>
+              </>
+            ) : <p className="text-center py-20 text-gray-300 font-bold italic">Selecione uma disciplina ao lado.</p>}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: MATERIAIS */}
       {activeTab === 'materials' && (
-        <div className="bg-white p-8 rounded-3xl border max-w-md">
-          <h3 className="text-xl font-black mb-6">ADICIONAR MATERIAL</h3>
-          <form onSubmit={handleAddMaterial} className="space-y-4">
-            <select value={matDisc} onChange={e => setMatDisc(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl" required>
-              <option value="">Disciplina...</option>
-              {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-            </select>
-            <input type="text" placeholder="Título" value={matLabel} onChange={e => setMatLabel(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl" required />
-            <input type="url" placeholder="URL Google Drive" value={matUrl} onChange={e => setMatUrl(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl" required />
-            <button type="submit" className="w-full bg-[#003366] text-white py-4 rounded-xl font-bold">Salvar na Sessão</button>
-          </form>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in zoom-in duration-500">
+          <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
+            <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Publicar Material</h3>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!matDisc || !matLabel || !matUrl) return;
+              onAddSummary({
+                id: `mat_${Date.now()}`,
+                disciplineId: matDisc,
+                label: matLabel,
+                url: matUrl,
+                type: matType,
+                isFolder: isFolder,
+                date: new Date().toLocaleDateString('pt-BR')
+              });
+              setMatLabel(''); setMatUrl(''); alert('Material publicado!');
+            }} className="space-y-4">
+              <select value={matDisc} onChange={e => setMatDisc(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm" required>
+                <option value="">Disciplina...</option>
+                {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+              </select>
+              <input type="text" placeholder="Título do Material" value={matLabel} onChange={e => setMatLabel(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm" required />
+              <input type="url" placeholder="Link Google Drive" value={matUrl} onChange={e => setMatUrl(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm" required />
+              <div onClick={() => setIsFolder(!isFolder)} className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl cursor-pointer">
+                <div className={`w-4 h-4 rounded border-2 ${isFolder ? 'bg-[#003366] border-[#003366]' : 'bg-white border-gray-200'}`}></div>
+                <span className="text-[9px] font-black uppercase text-[#003366]">Link de Pasta Coletiva</span>
+              </div>
+              <button type="submit" className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all">Publicar Material 🚀</button>
+            </form>
+          </div>
+          <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
+             <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Gestão de Materiais</h3>
+             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                {summaries.map(s => (
+                  <div key={s.id} className="p-4 bg-gray-50 rounded-2xl border flex justify-between items-center group hover:border-red-100 transition-all">
+                    <div className="flex items-center gap-3">
+                       <span className="text-2xl">{s.isFolder ? '📂' : '📑'}</span>
+                       <div>
+                          <p className="text-xs font-bold text-[#003366]">{s.label}</p>
+                          <p className="text-[8px] font-black uppercase text-gray-400">{s.disciplineId} • {s.date}</p>
+                       </div>
+                    </div>
+                    <button onClick={() => confirm("Excluir material?") && onRemoveSummary(s.id)} className="text-red-300 hover:text-red-500 transition-colors">
+                      <Trash2 size={18}/>
+                    </button>
+                  </div>
+                ))}
+                {summaries.length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhum material publicado.</p>}
+             </div>
+          </div>
         </div>
       )}
     </div>

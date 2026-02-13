@@ -13,11 +13,11 @@ import CalculatorsView from './views/CalculatorsView.tsx';
 import CareerQuiz from './components/CareerQuiz.tsx';
 import ReferencesView from './views/ReferencesView.tsx';
 import ShareMaterialView from './views/ShareMaterialView.tsx';
-import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult } from './types.ts';
+import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult, ReferenceMaterial } from './types.ts';
 import { INITIAL_QUESTIONS, SIMULATIONS } from './constants.tsx';
-import { db, ref, onValue, push, remove } from './firebase.ts';
+import { db, ref, onValue, push, remove, set } from './firebase.ts';
 
-const APP_VERSION = "4.2.5 - Hardened Build";
+const APP_VERSION = "4.2.7 - Full Admin Dashboard";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
@@ -27,67 +27,97 @@ const App: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
-  const [diagMessage, setDiagMessage] = useState("Verificando conexão...");
 
-  const [disciplines] = useState<SimulationInfo[]>(SIMULATIONS);
+  const [disciplines, setDisciplines] = useState<SimulationInfo[]>(SIMULATIONS);
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
   const [osceStations, setOsceStations] = useState<OsceStation[]>([]);
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
 
   useEffect(() => {
-    // Se o DB nem carregou o script, liberamos a tela branca imediatamente
     if (!db) {
-      setDiagMessage("Modo Offline (Sem Serviço)");
       setIsLoading(false);
       return;
     }
 
-    // Monitor de conexão
-    try {
-      onValue(ref(db, ".info/connected"), (snap) => {
-        setIsOnline(snap.val() === true);
+    onValue(ref(db, ".info/connected"), (snap) => {
+      setIsOnline(snap.val() === true);
+    });
+
+    // Sync Disciplinas (Temas e Referências Customizadas)
+    onValue(ref(db, 'discipline_config'), (snap) => {
+      const config = snap.val();
+      if (config) {
+        setDisciplines(prev => prev.map(disc => {
+          if (config[disc.id]) {
+            return {
+              ...disc,
+              themes: config[disc.id].themes || disc.themes,
+              references: config[disc.id].references || disc.references
+            };
+          }
+          return disc;
+        }));
+      }
+    });
+
+    // Outras Coleções
+    const collections = [
+      { path: 'questions', setter: (data: any) => setQuestions([...INITIAL_QUESTIONS, ...Object.keys(data).map(k => ({ ...data[k], firebaseId: k }))]) },
+      { path: 'summaries', setter: (data: any) => setSummaries(Object.keys(data).map(k => ({ ...data[k], firebaseId: k }))) },
+      { path: 'osce', setter: (data: any) => setOsceStations(Object.keys(data).map(k => ({ ...data[k], firebaseId: k }))) },
+      { path: 'quizResults', setter: (data: any) => setQuizResults(Object.keys(data).map(k => ({ ...data[k], id: k }))) }
+    ];
+
+    collections.forEach(col => {
+      onValue(ref(db, col.path), (snap) => {
+        if (snap.val()) {
+          col.setter(snap.val());
+        } else {
+          // Se a coleção estiver vazia mas tiver dados iniciais (como questões)
+          if (col.path === 'questions') setQuestions(INITIAL_QUESTIONS);
+          if (col.path === 'summaries') setSummaries([]);
+          if (col.path === 'osce') setOsceStations([]);
+          if (col.path === 'quizResults') setQuizResults([]);
+        }
       });
+    });
 
-      // Carregamento de dados com tratamento de erro por coleção
-      const collections = [
-        { path: 'questions', setter: (data: any) => setQuestions([...INITIAL_QUESTIONS, ...Object.keys(data).map(k => ({ ...data[k], firebaseId: k }))]) },
-        { path: 'summaries', setter: (data: any) => setSummaries(Object.keys(data).map(k => ({ ...data[k], firebaseId: k }))) },
-        { path: 'osce', setter: (data: any) => setOsceStations(Object.keys(data).map(k => ({ ...data[k], firebaseId: k }))) }
-      ];
-
-      collections.forEach(col => {
-        onValue(ref(db, col.path), (snap) => {
-          if (snap.val()) col.setter(snap.val());
-        }, (err) => console.warn(`Falha na coleção ${col.path}`));
-      });
-
-    } catch (e) {
-      console.error("Erro no monitoramento do banco:", e);
-    }
-
-    // Timer de segurança: Nunca deixar a tela branca por mais de 3 segundos
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 3000);
-
-    return () => clearTimeout(timer);
+    setTimeout(() => setIsLoading(false), 2000);
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f4f7f6] p-6 text-center">
-        <div className="w-12 h-12 border-4 border-[#003366]/10 border-t-[#D4A017] rounded-full animate-spin mb-6"></div>
-        <h1 className="text-[#003366] font-black uppercase tracking-[0.3em] text-xs mb-2">Medicina do Sertão</h1>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{diagMessage}</p>
-      </div>
-    );
-  }
+  // HANDLERS ADMIN
+  const handleAddTheme = (disciplineId: string, themeName: string) => {
+    const disc = disciplines.find(d => d.id === disciplineId);
+    if (!disc) return;
+    const newThemes = Array.from(new Set([...disc.themes, themeName]));
+    if (db) set(ref(db, `discipline_config/${disciplineId}/themes`), newThemes);
+  };
+
+  const handleRemoveTheme = (disciplineId: string, themeName: string) => {
+    const disc = disciplines.find(d => d.id === disciplineId);
+    if (!disc) return;
+    const newThemes = disc.themes.filter(t => t !== themeName);
+    if (db) set(ref(db, `discipline_config/${disciplineId}/themes`), newThemes);
+  };
+
+  const handleUpdateReferences = (disciplineId: string, refsList: ReferenceMaterial[]) => {
+    if (db) set(ref(db, `discipline_config/${disciplineId}/references`), refsList);
+  };
 
   const handleSelectDiscipline = (id: string) => {
     setSelectedDisciplineId(id);
     setCurrentView('discipline');
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f4f7f6] p-6">
+        <div className="w-12 h-12 border-4 border-[#003366]/10 border-t-[#D4A017] rounded-full animate-spin mb-6"></div>
+        <h1 className="text-[#003366] font-black uppercase tracking-[0.3em] text-xs">Sincronizando Dados...</h1>
+      </div>
+    );
+  }
 
   const currentDiscipline = disciplines.find(s => s.id === selectedDisciplineId);
 
@@ -98,22 +128,16 @@ const App: React.FC = () => {
         if (view === 'home') setSelectedDisciplineId(null);
       }} />
 
-      <div className={`py-1 px-4 flex justify-center items-center gap-2 border-b transition-all duration-700 ${isOnline ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+      <div className={`py-1 px-4 flex justify-center items-center gap-2 border-b transition-all duration-700 ${isOnline ? 'bg-green-50' : 'bg-red-50'}`}>
         <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}></div>
-        <span className={`text-[8px] font-black uppercase tracking-[0.1em] ${isOnline ? 'text-green-700' : 'text-red-700'}`}>
-          {isOnline ? 'Sincronização Ativa' : 'Banco de Dados Desconectado (Offline)'}
+        <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-green-700' : 'text-red-700'}`}>
+          {isOnline ? 'Conexão em Nuvem Ativa' : 'Trabalhando Offline'}
         </span>
       </div>
 
       <div className="flex-grow">
-        {currentView === 'home' && (
-          <HomeView disciplines={disciplines} onSelectDiscipline={handleSelectDiscipline} />
-        )}
-        
-        {currentView === 'career-quiz' && (
-          <CareerQuiz onBack={() => setCurrentView('home')} />
-        )}
-
+        {currentView === 'home' && <HomeView disciplines={disciplines} onSelectDiscipline={handleSelectDiscipline} />}
+        {currentView === 'career-quiz' && <CareerQuiz onBack={() => setCurrentView('home')} />}
         {currentView === 'discipline' && selectedDisciplineId && (
           <DisciplineView 
             disciplineId={selectedDisciplineId} 
@@ -123,139 +147,56 @@ const App: React.FC = () => {
             onSelectOption={(type) => setCurrentView(type as ViewState)}
           />
         )}
-
-        {currentView === 'references-view' && currentDiscipline && (
-          <ReferencesView 
-            discipline={currentDiscipline}
-            onBack={() => setCurrentView('discipline')}
-          />
-        )}
-
-        {currentView === 'share-material' && currentDiscipline && (
-          <ShareMaterialView 
-            discipline={currentDiscipline}
-            onShare={(s) => {
-                if (db) push(ref(db, 'summaries'), s);
-                else setSummaries(prev => [...prev, s]);
-            }}
-            onBack={() => setCurrentView('discipline')}
-          />
-        )}
-
+        {currentView === 'references-view' && currentDiscipline && <ReferencesView discipline={currentDiscipline} onBack={() => setCurrentView('discipline')} />}
+        {currentView === 'share-material' && currentDiscipline && <ShareMaterialView discipline={currentDiscipline} onShare={(s) => db && push(ref(db, 'summaries'), s)} onBack={() => setCurrentView('discipline')} />}
         {currentView === 'quiz-setup' && selectedDisciplineId && (
           <QuizSetupView 
             discipline={disciplines.find(s => s.id === selectedDisciplineId)!}
             availableQuestions={questions}
             onBack={() => setCurrentView('discipline')}
-            onStart={(filtered) => {
-                setQuizFilteredQuestions(filtered);
-                setCurrentView('quiz');
-            }}
+            onStart={(filtered) => { setQuizFilteredQuestions(filtered); setCurrentView('quiz'); }}
           />
         )}
-
-        {currentView === 'quiz' && (
-          <QuizView 
-            questions={quizFilteredQuestions} 
-            discipline={currentDiscipline!} 
-            onBack={() => setCurrentView('quiz-setup')}
-            onSaveResult={(score, total) => {
-                if (db) {
-                   const res = { score, total, date: new Date().toLocaleString(), discipline: currentDiscipline?.title };
-                   push(ref(db, 'quizResults'), res);
-                }
-            }}
-          />
-        )}
-
-        {currentView === 'summaries-list' && selectedDisciplineId && (
-          <SummariesListView 
-            disciplineId={selectedDisciplineId} 
-            disciplines={disciplines} 
-            summaries={summaries} 
-            onBack={() => setCurrentView('discipline')} 
-            mode="summary" 
-          />
-        )}
-
-        {currentView === 'scripts-list' && selectedDisciplineId && (
-          <SummariesListView 
-            disciplineId={selectedDisciplineId} 
-            disciplines={disciplines} 
-            summaries={summaries} 
-            onBack={() => setCurrentView('discipline')} 
-            mode="script" 
-          />
-        )}
-
+        {currentView === 'quiz' && <QuizView questions={quizFilteredQuestions} discipline={currentDiscipline!} onBack={() => setCurrentView('quiz-setup')} onSaveResult={(score, total) => db && push(ref(db, 'quizResults'), { score, total, date: new Date().toLocaleString(), discipline: currentDiscipline?.title })} />}
+        {currentView === 'summaries-list' && selectedDisciplineId && <SummariesListView disciplineId={selectedDisciplineId} disciplines={disciplines} summaries={summaries} onBack={() => setCurrentView('discipline')} mode="summary" />}
+        {currentView === 'scripts-list' && selectedDisciplineId && <SummariesListView disciplineId={selectedDisciplineId} disciplines={disciplines} summaries={summaries} onBack={() => setCurrentView('discipline')} mode="script" />}
         {currentView === 'osce-setup' && selectedDisciplineId && (
           <OsceSetupView 
             discipline={disciplines.find(s => s.id === selectedDisciplineId)!}
             availableStations={osceStations.filter(s => s.disciplineId === selectedDisciplineId)}
             onBack={() => setCurrentView('discipline')}
-            onStart={(station) => {
-              setCurrentOsceStation(station);
-              setCurrentView('osce-quiz');
-            }}
+            onStart={(station) => { setCurrentOsceStation(station); setCurrentView('osce-quiz'); }}
           />
         )}
-
-        {currentView === 'osce-quiz' && currentOsceStation && (
-          <OsceView station={currentOsceStation} onBack={() => setCurrentView('osce-setup')} />
-        )}
-
-        {currentView === 'calculators' && (
-          <CalculatorsView onBack={() => setCurrentView('home')} />
-        )}
-
+        {currentView === 'osce-quiz' && currentOsceStation && <OsceView station={currentOsceStation} onBack={() => setCurrentView('osce-setup')} />}
+        {currentView === 'calculators' && <CalculatorsView onBack={() => setCurrentView('home')} />}
         {currentView === 'admin' && (
           <AdminView 
             questions={questions}
             osceStations={osceStations}
             disciplines={disciplines}
+            summaries={summaries}
             quizResults={quizResults}
             onAddSummary={(s) => db && push(ref(db, 'summaries'), s)}
-            onAddQuestions={(qs) => {
-                if (db) qs.forEach(q => push(ref(db, 'questions'), q));
-            }}
+            onRemoveSummary={(id) => { const s = summaries.find(item => item.id === id); if (db && s?.firebaseId) remove(ref(db, `summaries/${s.firebaseId}`)); }}
+            onAddQuestions={(qs) => db && qs.forEach(q => push(ref(db, 'questions'), q))}
             onUpdateQuestion={() => {}}
-            onAddOsceStations={(os) => {
-                if (db) os.forEach(o => push(ref(db, 'osce'), o));
-            }}
-            onRemoveQuestion={(id) => {
-                const q = questions.find(item => item.id === id);
-                if (db && q?.firebaseId) remove(ref(db, `questions/${q.firebaseId}`));
-            }}
-            onRemoveOsceStation={(id) => {
-                const o = osceStations.find(item => item.id === id);
-                if (db && o?.firebaseId) remove(ref(db, `osce/${o.firebaseId}`));
-            }}
-            onClearDatabase={() => {
-                if(confirm("Deseja apagar TODOS os dados da nuvem?")) {
-                   if (db) {
-                     remove(ref(db, 'questions'));
-                     remove(ref(db, 'summaries'));
-                     remove(ref(db, 'osce'));
-                   }
-                }
-            }}
+            onAddOsceStations={(os) => db && os.forEach(o => push(ref(db, 'osce'), o))}
+            onRemoveQuestion={(id) => { const q = questions.find(item => item.id === id); if (db && q?.firebaseId) remove(ref(db, `questions/${q.firebaseId}`)); }}
+            onRemoveOsceStation={(id) => { const o = osceStations.find(item => item.id === id); if (db && o?.firebaseId) remove(ref(db, `osce/${o.firebaseId}`)); }}
+            onClearDatabase={() => db && confirm("Apagar toda a configuração personalizada?") && (remove(ref(db, 'questions')), remove(ref(db, 'summaries')), remove(ref(db, 'osce')), remove(ref(db, 'discipline_config')))}
             onClearResults={() => db && remove(ref(db, 'quizResults'))}
-            onAddTheme={() => {}}
-            onRemoveTheme={() => {}}
-            onUpdateTheme={() => {}}
-            onUpdateReferences={() => {}}
+            onAddTheme={handleAddTheme}
+            onRemoveTheme={handleRemoveTheme}
+            onUpdateReferences={handleUpdateReferences}
             onBack={() => setCurrentView('home')}
           />
         )}
       </div>
 
       <footer className="bg-white border-t py-6 flex flex-col items-center gap-2">
-        <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-          © 2026 Medicina do Sertão
-        </div>
-        <div className="text-[8px] text-gray-300 font-black uppercase tracking-tighter">
-          Build {APP_VERSION}
-        </div>
+        <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">© 2026 Medicina do Sertão</div>
+        <div className="text-[8px] text-gray-300 font-black uppercase tracking-tighter">Build {APP_VERSION}</div>
       </footer>
     </div>
   );
