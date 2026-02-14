@@ -1,9 +1,17 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database";
+import { 
+  getDatabase, 
+  ref, 
+  onValue, 
+  push, 
+  remove, 
+  set, 
+  update,
+  off 
+} from "firebase/database";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  // Aqui usamos a variável de ambiente para proteger sua chave
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "monitor-virtual-fms.firebaseapp.com",
   databaseURL: "https://monitor-virtual-fms-default-rtdb.firebaseio.com",
@@ -17,11 +25,15 @@ const firebaseConfig = {
 // Inicializa o Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializa o Analytics apenas se estiver no navegador
+// Inicializa Analytics apenas no cliente
 if (typeof window !== "undefined") {
   getAnalytics(app);
 }
 
-// Exporta o Database para ser usado no restante do app
+// Exporta o banco de dados
 export const db = getDatabase(app);
+
+// Exporta as funções do banco de dados para que o App.tsx as encontre
+export { ref, onValue, push, remove, set, update, off };
+
 export default app;
