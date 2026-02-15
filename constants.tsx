@@ -25,13 +25,55 @@ export const SIMULATIONS: SimulationInfo[] = [
       'Biofísica e Bioquímica'
     ],
     references: [
-      { id: 'ref_fisio1', title: 'Tratado de Fisiologia Médica (Guyton & Hall)', author: 'John E. Hall', type: 'book' },
-      { id: 'ref_fisio2', title: 'Fisiologia (Linda Costanzo)', author: 'Linda S. Costanzo', type: 'book' },
-      { id: 'ref_anato1', title: 'Anatomia Orientada para a Clínica (Moore)', author: 'Keith L. Moore', type: 'book' },
-      { id: 'ref_anato2', title: 'Atlas de Anatomia Humana (Netter)', author: 'Frank H. Netter', type: 'book' },
-      { id: 'ref_bioq1', title: 'Princípios de Bioquímica (Lehninger)', author: 'David L. Nelson', type: 'book' },
-      { id: 'ref_histo1', title: 'Histologia Básica (Junqueira & Carneiro)', author: 'L.C. Junqueira', type: 'book' },
-      { id: 'ref_embrio1', title: 'Embriologia Clínica (Moore)', author: 'Keith L. Moore', type: 'book' }
+      { 
+        id: 'ref_fisio1', 
+        title: 'Tratado de Fisiologia Médica (Guyton & Hall)', 
+        author: 'John E. Hall', 
+        type: 'link', 
+        url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214483' 
+      },
+      { 
+        id: 'ref_fisio2', 
+        title: 'Fisiologia (Linda Costanzo)', 
+        author: 'Linda S. Costanzo', 
+        type: 'link', 
+        url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214442' 
+      },
+      { 
+        id: 'ref_anato1', 
+        title: 'Anatomia Orientada para a Clínica (Moore)', 
+        author: 'Keith L. Moore', 
+        type: 'link', 
+        url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214507' 
+      },
+      { 
+        id: 'ref_anato2', 
+        title: 'Atlas de Anatomia Humana (Netter)', 
+        author: 'Frank H. Netter', 
+        type: 'link', 
+        url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214509' 
+      },
+      { 
+        id: 'ref_bioq1', 
+        title: 'Princípios de Bioquímica (Lehninger)', 
+        author: 'David L. Nelson', 
+        type: 'link', 
+        url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/213429' 
+      },
+      { 
+        id: 'ref_histo1', 
+        title: 'Histologia Básica (Junqueira & Carneiro)', 
+        author: 'L.C. Junqueira', 
+        type: 'link', 
+        url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214487' 
+      },
+      { 
+        id: 'ref_embrio1', 
+        title: 'Embriologia Clínica (Moore)', 
+        author: 'Keith L. Moore', 
+        type: 'link', 
+        url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214458' 
+      }
     ]
   },
   {
@@ -111,5 +153,4 @@ export const SIMULATIONS: SimulationInfo[] = [
   }
 ];
 
-// O banco inicial agora está vazio. As questões virão apenas do CSV importado.
 export const INITIAL_QUESTIONS: Question[] = [];
