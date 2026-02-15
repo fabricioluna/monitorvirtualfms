@@ -111,15 +111,5 @@ export const SIMULATIONS: SimulationInfo[] = [
   }
 ];
 
-export const INITIAL_QUESTIONS: Question[] = [
-  {
-    id: 'q_uciv_1',
-    disciplineId: 'uciv',
-    theme: 'Fisiologia Respiratória',
-    tag: 'Fisiologia',
-    q: "De acordo com o plano de curso da UCIV, qual sistema é responsável pelo controle do automatismo do ciclo respiratório e ventilação?",
-    options: ["Córtex Motor", "Controle Central (Bulbo/Ponte)", "Diafragma Isolado", "Barorreceptores Aórticos"],
-    answer: 1,
-    explanation: "O controle do automatismo respiratório reside nos centros respiratórios localizados no tronco encefálico (Bulbo e Ponte)."
-  }
-];
+// O banco inicial agora está vazio. As questões virão apenas do CSV importado.
+export const INITIAL_QUESTIONS: Question[] = [];
