@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Question, OsceStation, SimulationInfo, Summary, QuizResult, ReferenceMaterial } from '../types.ts';
+import { Question, OsceStation, SimulationInfo, Summary, QuizResult, ReferenceMaterial } from '../types';
 import { Trash2, Plus, BookOpen, Layers, BarChart3, FileText, ClipboardList, Stethoscope, Search } from 'lucide-react';
 
 interface AdminViewProps {
@@ -50,6 +49,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   // Filtros de Lista
   const [listFilter, setListFilter] = useState('');
   const [discFilter, setDiscFilter] = useState('');
+  const [themeFilter, setThemeFilter] = useState('');
 
   // States para Formulários
   const [selectedDiscId, setSelectedDiscId] = useState('');
@@ -182,7 +182,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         ].map(tab => (
           <button 
             key={tab.id}
-            onClick={() => { setActiveTab(tab.id as any); setDiscFilter(''); }} 
+            onClick={() => { setActiveTab(tab.id as any); setDiscFilter(''); setThemeFilter(''); }} 
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all
               ${activeTab === tab.id ? 'bg-[#003366] text-white shadow-xl scale-105' : 'bg-white text-gray-400 border border-gray-100 hover:border-gray-300'}
             `}
@@ -274,16 +274,37 @@ const AdminView: React.FC<AdminViewProps> = ({
               <button type="submit" disabled={!qFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">Subir Questões 🚀</button>
             </form>
           </div>
+          
           <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
-             <div className="flex justify-between items-center mb-6">
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter">Gestão de Questões</h3>
-                <select value={discFilter} onChange={e => setDiscFilter(e.target.value)} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]">
-                  <option value="">Todas Disciplinas</option>
-                  {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-                </select>
+                
+                <div className="flex flex-wrap gap-2">
+                    <select 
+                      value={discFilter} 
+                      onChange={e => { setDiscFilter(e.target.value); setThemeFilter(''); }} 
+                      className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]"
+                    >
+                      <option value="">Todas Disciplinas</option>
+                      {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                    </select>
+
+                    <select 
+                      value={themeFilter} 
+                      onChange={e => setThemeFilter(e.target.value)} 
+                      disabled={!discFilter}
+                      className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Todos os Temas</option>
+                      {discFilter && disciplines.find(d => d.id === discFilter)?.themes.map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                </div>
              </div>
+
              <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
-                {questions.filter(q => !discFilter || q.disciplineId === discFilter).map(q => (
+                {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter)).map(q => (
                   <div key={q.id} className="p-4 bg-gray-50 rounded-2xl border flex justify-between items-start gap-4 group hover:border-red-100 transition-all">
                     <div>
                       <p className="text-xs font-bold text-gray-700 leading-snug">{q.q}</p>
@@ -297,7 +318,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </button>
                   </div>
                 ))}
-                {questions.length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma questão encontrada.</p>}
+                {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter)).length === 0 && (
+                  <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma questão encontrada para este filtro.</p>
+                )}
              </div>
           </div>
         </div>
