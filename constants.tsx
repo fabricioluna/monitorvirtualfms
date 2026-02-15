@@ -77,23 +77,28 @@ export const SIMULATIONS: SimulationInfo[] = [
     ]
   },
   {
-    id: 'ucv',
-    title: 'UCV - Agressão e Defesa',
-    description: 'Agentes agressores, imunidade inata e adquirida, inflamação, lesão celular e hipersensibilidade.',
-    meta: '110h • Mecanismos de Lesão',
-    icon: '🛡️',
-    status: 'locked',
+    id: 'hm2',
+    title: 'HM2 - Habilidades Médicas II',
+    description: 'Relacionamento médico-paciente, semiologia, anamnese e exame físico geral.',
+    meta: '120h • Prática Clínica',
+    icon: '🩺',
+    status: 'active',
     themes: [
-      'Mecanismos de Lesão Celular', 
-      'Imunologia Celular e Humoral', 
-      'Processos Inflamatórios', 
-      'Microbiologia e Parasitologia',
-      'Hipersensibilidade e Alergia'
+      'Técnicas de Comunicação e Anamnese', 
+      'Exame Físico Geral e Especializado', 
+      'Ética Médica e Postura',
+      'Relação Médico-Paciente-Família',
+      'Comunicação de Más Notícias'
+    ],
+    references: [
+      { id: 'ref7', title: 'Exame Clínico', author: 'Porto & Porto', type: 'book' },
+      { id: 'ref8', title: 'Semiologia Médica', author: 'Bates', type: 'book' },
+      { id: 'ref9', title: 'Código de Ética Médica', author: 'CFM', type: 'article' }
     ]
   },
   {
     id: 'iesc2',
-    title: 'IESC II - Saúde na Comunidade II',
+    title: 'IESC2 - Saúde na Comunidade II',
     description: 'Vigilância em saúde, acolhimento na UBS, índices epidemiológicos e fluxos de referência.',
     meta: '80h • Gestão e Sociedade',
     icon: '🏥',
@@ -112,44 +117,70 @@ export const SIMULATIONS: SimulationInfo[] = [
     ]
   },
   {
-    id: 'uccg2',
-    title: 'UCCG II - Ciência e Gestão II',
-    description: 'Metodologia científica, bioestatística aplicada, gestão de serviços de saúde e ética em pesquisa.',
-    meta: '60h • Ciência e Evidência',
-    icon: '📊',
+    id: 'uccg2_3',
+    title: 'UCCG2-3 - Análise Social e Relações Étnico-Raciais',
+    description: 'Conceitos de sociologia, diversidade, racismo estrutural, e determinantes sociais da saúde.',
+    meta: '60h • Ciências Humanas',
+    icon: '⚖️',
     status: 'active',
     themes: [
-      'Metodologia Científica', 
-      'Bioestatística e Análise de Dados', 
-      'Gestão em Saúde e Modelos de Atenção', 
-      'Ética e Bioética na Pesquisa',
-      'Leitura Crítica de Artigos'
+      'Sociodiversidade, Cultura e Minorias',
+      'Relações Étnico-Raciais e Racismo Estrutural',
+      'Equidade e Determinantes Sociais em Saúde',
+      'Movimentos Sociais e Saúde'
     ],
     references: [
-      { id: 'ref10', title: 'Delineando a Pesquisa Clínica', author: 'Stephen Hulley', type: 'book' },
-      { id: 'ref11', title: 'Bioestatística', author: 'Sonia Vieira', type: 'book' },
-      { id: 'ref12', title: 'Gestão da Clínica no SUS', author: 'Ministério da Saúde', type: 'article' }
+      { id: 'uccg2_3_ref1', title: 'Educação e Sociologia', author: 'Émile Durkheim', type: 'book' },
+      { id: 'uccg2_3_ref2', title: 'Racismo Estrutural', author: 'Silvio Almeida', type: 'book' }
     ]
   },
   {
-    id: 'hm2',
-    title: 'HM2 - Habilidades Médicas II',
-    description: 'Relacionamento médico-paciente, semiologia, anamnese e exame físico geral.',
-    meta: '120h • Prática Clínica',
-    icon: '🩺',
+    id: 'uccg2_4',
+    title: 'UCCG2-4 - Hist., Sociedade e Cultura Afro e Indígena',
+    description: 'Contexto histórico e cultural das populações afro-brasileiras e indígenas e seus impactos na saúde.',
+    meta: '60h • Cultura e Saúde',
+    icon: '🌿',
     status: 'active',
     themes: [
-      'Técnicas de Comunicação e Anamnese', 
-      'Exame Físico Geral e Especializado', 
-      'Ética Médica e Postura',
-      'Relação Médico-Paciente-Família',
-      'Comunicação de Muitos Notícias'
+      'História da População Indígena no Brasil',
+      'Cultura Afro-Brasileira e Saúde da População Negra',
+      'Políticas Públicas para Minorias',
+      'Medicina Tradicional e Saberes Populares'
     ],
     references: [
-      { id: 'ref7', title: 'Exame Clínico', author: 'Porto & Porto', type: 'book' },
-      { id: 'ref8', title: 'Semiologia Médica', author: 'Bates', type: 'book' },
-      { id: 'ref9', title: 'Código de Ética Médica', author: 'CFM', type: 'article' }
+      { id: 'uccg2_4_ref1', title: 'O Povo Brasileiro', author: 'Darcy Ribeiro', type: 'book' }
     ]
+  },
+  {
+    id: 'ucv',
+    title: 'UCV - Mecanismos de Agressão e Defesa',
+    description: 'Agentes agressores, imunidade inata e adquirida, inflamação, lesão celular e hipersensibilidade.',
+    meta: '110h • Mecanismos de Lesão',
+    icon: '🛡️',
+    status: 'locked',
+    themes: [
+      'Mecanismos de Lesão Celular', 
+      'Imunologia Celular e Humoral', 
+      'Processos Inflamatórios', 
+      'Microbiologia e Parasitologia',
+      'Hipersensibilidade e Alergia'
+    ],
+    references: []
+  },
+  {
+    id: 'ucvi',
+    title: 'UCVI - Percepção, Consciência e Emoção',
+    description: 'Neuroanatomia, neurofisiologia e bases biológicas do comportamento humano, psiquiatria e neurologia.',
+    meta: '110h • Neurociências',
+    icon: '🧠',
+    status: 'locked',
+    themes: [
+      'Neuroanatomia e Vias Sensitivas',
+      'Neurofisiologia da Consciência',
+      'Bases da Emoção e Comportamento',
+      'Psicofarmacologia Básica'
+    ],
+    references: []
   }
 ];
 
