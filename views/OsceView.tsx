@@ -1,226 +1,236 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OsceStation } from '../types';
-import { getAIResponse } from '../services/aiService';
 
-interface OsceAIViewProps {
+interface OsceViewProps {
   station: OsceStation;
   onBack: () => void;
 }
 
-const formatFeedback = (text: string) => {
-  const parts = text.split(/(\*\*.*?\*\*)/g);
-  return (
-    <>
-      {parts.map((part, index) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={index} className="text-[#D4A017] font-black">{part.slice(2, -2)}</strong>;
-        }
-        return <span key={index}>{part}</span>;
-      })}
-    </>
-  );
-};
-
-const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
-  const defaultSetting = 'Consultório médico padrão. Disponível: maca, pia, estetoscópio, esfigmomanômetro, termômetro, oftalmoscópio, otoscópio, martelo de reflexos, lanterna, luvas e espátulas.';
-  const currentSetting = station.setting || defaultSetting;
-
-  const [messages, setMessages] = useState<{role: 'user'|'patient'|'system', text: string}[]>([
-    { role: 'system', text: `🩺 SIMULAÇÃO INICIADA\n\n📍 AMBIENTE: ${currentSetting}\n\n📝 CENÁRIO: ${station.scenario}\n\n🎯 TAREFA: ${station.task}\n\n(O paciente aguarda a sua abordagem...)` }
-  ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
+  const [selectedActions, setSelectedActions] = useState<number[]>([]);
   const [isFinished, setIsFinished] = useState(false);
-  const [feedback, setFeedback] = useState('');
+  const [score, setScore] = useState(0);
+  const [timer, setTimer] = useState(0);
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const safeActionCloud = station.actionCloud || [];
+  const safeOrderIndices = station.correctOrderIndices || [];
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, feedback]);
+    let interval: any;
+    if (!isFinished) {
+      interval = setInterval(() => setTimer(t => t + 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isFinished]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading || isFinished) return;
-    const userMsg = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setIsLoading(true);
-
-    const chatHistory = messages
-      .filter(m => m.role !== 'system')
-      .map(m => `${m.role === 'user' ? 'Médico' : 'Paciente'}: ${m.text}`)
-      .join('\n');
-
-    const context = `Você é um PACIENTE simulado interagindo com um estudante de medicina em um exame OSCE. 
-    SEU CENÁRIO CLÍNICO: "${station.scenario}".
-    AMBIENTE FÍSICO DA SALA: "${currentSetting}".
-    
-    REGRAS DE INTERAÇÃO (CRÍTICO):
-    1. Incorpore a persona. Responda APENAS o que foi perguntado, de forma direta e coloquial.
-    2. NÃO entregue o seu diagnóstico de mão beijada.
-    3. DINÂMICA EMOCIONAL: Reaja ao tom do médico. (Se ele for educado -> alivio/colaboração; se ríspido/sem se apresentar -> desconforto/ansiedade).
-    4. SIMULAÇÃO FÍSICA E LIMITAÇÃO DE RECURSOS: 
-       - Se o estudante realizar uma ação física de consultório (ex: "Aferir pressão", "Auscultar pulmão", "Palpar pescoço"), forneça IMEDIATAMENTE os achados clínicos compatíveis com a sua doença.
-       - SE O ESTUDANTE PEDIR EXAMES LABORATORIAIS OU DE IMAGEM (Ex: Raio-X, Tomografia, Hemograma, Ultrassom) NA SALA: Incorpore o narrador da simulação e diga explicitamente: "[SISTEMA]: Você está na sala de exame clínico. Este recurso não está disponível aqui no momento. Foco na anamnese e no exame físico."
-    
-    Histórico da conversa até agora:
-    ${chatHistory}
-    `;
-
-    const prompt = `Médico (Aluno): ${userMsg}\nPaciente/Sistema:`;
-
-    const response = await getAIResponse(prompt, context);
-    const cleanResponse = response.replace(/^Paciente:\s*/i, '').replace(/^Paciente\/Sistema:\s*/i, '').trim();
-    
-    setMessages(prev => [...prev, { role: 'patient', text: cleanResponse }]);
-    setIsLoading(false);
+  const toggleAction = (index: number) => {
+    if (isFinished) return;
+    if (selectedActions.includes(index)) {
+      setSelectedActions(prev => prev.filter(i => i !== index));
+    } else {
+      setSelectedActions(prev => [...prev, index]);
+    }
   };
 
-  const handleFinish = async () => {
-    setIsLoading(true);
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const calculateDetailedScore = () => {
+    let points = 0;
+    const maxPoints = safeOrderIndices.length * 1.5;
+
+    safeOrderIndices.forEach((correctIdx, position) => {
+      const userIndex = selectedActions.indexOf(correctIdx);
+      if (userIndex !== -1) {
+        points += 1.0; 
+        if (userIndex === position) points += 0.5; 
+      }
+    });
+
+    const errors = selectedActions.filter(i => !safeOrderIndices.includes(i)).length;
+    points = Math.max(0, points - (errors * 0.5));
+
+    const final = maxPoints > 0 ? (points / maxPoints) * 10 : 0;
+    setScore(parseFloat(final.toFixed(1)));
     setIsFinished(true);
-
-    const chatHistory = messages
-      .filter(m => m.role !== 'system')
-      .map(m => `${m.role === 'user' ? 'Médico' : 'Paciente'}: ${m.text}`)
-      .join('\n');
-
-    const context = `Você é um PRECEPTOR MÉDICO SÊNIOR avaliando um aluno em uma estação OSCE simulada.
-    Cenário Original: "${station.scenario}".
-    Checklist Oficial: ${station.checklist.join(', ')}.
-    Ambiente Disponível: "${currentSetting}".
-    `;
-
-    const prompt = `Abaixo está a transcrição da anamnese/exame que o aluno fez com o Paciente Virtual:
-    \n${chatHistory}\n
-    
-    Gere uma avaliação final madura, justa e muito didática. Foque em se o aluno cumpriu o *objetivo clínico* de cada etapa do checklist.
-    Siga EXATAMENTE esta estrutura (use negrito **texto** para destacar os termos cruciais):
-
-    🤝 POSTURA E COMUNICAÇÃO (SOFT SKILLS):
-    (Avalie se o aluno se apresentou, foi empático e soube conduzir a consulta.)
-
-    🎯 ACERTOS CLÍNICOS E USO DO AMBIENTE:
-    (Diga quais itens do checklist ele investigou bem e se usou bem os materiais disponíveis no consultório.)
-
-    ⚠️ O QUE FALTOU OU PODE MELHORAR:
-    (Aponte falhas graves do checklist ou condutas irreais/precipitadas para o ambiente do exame.)
-
-    💡 ESSÊNCIA DO CASO:
-    (Explique a lição central que este caso ensina e o raciocínio clínico esperado.)
-
-    📊 NOTA FINAL (0 a 10):
-    (Dê a nota baseada no desempenho técnico e atitude)`;
-
-    const response = await getAIResponse(prompt, context);
-    setFeedback(response);
-    setIsLoading(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 pb-32 h-screen flex flex-col">
-      <div className="flex justify-between items-center mb-4 border-b pb-4 shrink-0">
-        <button onClick={onBack} className="text-[#003366] font-black uppercase text-[10px] flex items-center gap-2 hover:text-[#D4A017]">
-          <span>←</span> Encerrar
+    <div className="max-w-6xl mx-auto px-4 py-8 pb-40">
+      <div className="flex justify-between items-center mb-10 border-b pb-6">
+        <button onClick={onBack} className="text-[#003366] font-black uppercase text-xs flex items-center gap-2 hover:text-[#D4A017] transition-colors">
+          <span>←</span> Sair da Estação
         </button>
         <div className="text-right">
-          <span className="text-[10px] font-black text-[#D4A017] uppercase tracking-widest">Paciente Virtual</span>
-          <h2 className="text-xl font-black text-[#003366] uppercase tracking-tighter">{station.title}</h2>
+          <span className="text-[10px] font-black text-[#D4A017] uppercase tracking-widest">{station.theme}</span>
+          <h2 className="text-2xl font-black text-[#003366] uppercase tracking-tighter">{station.title}</h2>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="lg:col-span-1 space-y-6">
+          
+          <div className="bg-white p-8 rounded-[2rem] shadow-xl border-t-8 border-[#003366]">
+            <h3 className="text-[10px] font-black text-[#003366] uppercase mb-4 tracking-widest flex items-center gap-2">
+              <span>📋</span> Cenário Clínico
+            </h3>
+            <p className="text-gray-700 leading-relaxed text-base md:text-lg font-medium mb-6">"{station.scenario}"</p>
+            
+            {station.setting && (
+               <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                  <h4 className="text-[9px] font-black text-blue-800 uppercase mb-1 tracking-widest">📍 Ambiente</h4>
+                  <p className="text-xs text-blue-900 font-medium">{station.setting}</p>
+               </div>
+            )}
+          </div>
+
+          <div className="bg-[#003366] p-8 rounded-[2rem] shadow-xl text-white">
+            <h3 className="text-[10px] font-black text-[#D4A017] uppercase mb-4 tracking-widest">🎯 Comandos</h3>
+            <p className="text-sm font-bold leading-relaxed">{station.task}</p>
+          </div>
+
+          {station.tip && (
+            <div className="bg-yellow-50 p-6 rounded-[2rem] border border-yellow-200 shadow-sm animate-in fade-in duration-500">
+              <h3 className="text-[10px] font-black text-yellow-600 uppercase mb-2 tracking-widest flex items-center gap-2">
+                <span>💡</span> Dica do Preceptor
+              </h3>
+              <p className="text-sm font-medium text-yellow-800 leading-relaxed">{station.tip}</p>
+            </div>
+          )}
+
+          {!isFinished && (
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 flex items-center justify-between">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cronômetro</span>
+              <span className={`text-xl font-mono font-bold ${timer > 480 ? 'text-red-500' : 'text-[#003366]'}`}>
+                {formatTime(timer)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="lg:col-span-2">
+          {!isFinished ? (
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl">
+              <h3 className="text-xl font-black text-[#003366] uppercase mb-8">Nuvem de Condutas</h3>
+              
+              <div className="mb-10">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4">Sua Sequência:</label>
+                <div className="min-h-[120px] bg-gray-50 rounded-3xl p-6 flex flex-wrap gap-3 border-2 border-dashed border-gray-200">
+                  {selectedActions.length === 0 && <p className="text-gray-300 text-xs italic m-auto">Toque nas ações abaixo na ordem correta...</p>}
+                  {selectedActions.map((idx, i) => (
+                    <div key={i} className="bg-white px-4 py-2 rounded-xl shadow-sm border text-xs font-bold text-[#003366] flex items-center gap-2 animate-in zoom-in">
+                      <span className="bg-[#003366] text-white w-5 h-5 rounded flex items-center justify-center text-[9px]">{i + 1}</span>
+                      {safeActionCloud[idx]}
+                      <button onClick={() => toggleAction(idx)} className="ml-2 text-red-400 hover:text-red-600">✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {safeActionCloud.map((action, idx) => (
+                  <button
+                    key={idx}
+                    disabled={selectedActions.includes(idx)}
+                    onClick={() => toggleAction(idx)}
+                    className={`p-4 rounded-2xl text-left text-xs font-bold transition-all border-2
+                      ${selectedActions.includes(idx) 
+                        ? 'bg-gray-100 border-gray-100 text-gray-300 opacity-50' 
+                        : 'bg-white border-gray-100 text-[#003366] hover:border-[#D4A017] hover:shadow-md'}
+                    `}
+                  >
+                    {action}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-10 animate-in fade-in duration-700">
+              <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border-b-8 border-[#D4A017]">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2">Desempenho Final</p>
+                <h4 className="text-7xl font-black text-[#003366]">{score}</h4>
+                <p className="text-sm font-bold text-[#D4A017] mt-2">Checklist FMS concluído em {formatTime(timer)}</p>
+              </div>
+
+              <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl">
+                <h4 className="text-lg font-black text-[#003366] uppercase mb-8 pb-4 border-b flex items-center gap-3">
+                  <span>📊</span> Análise de Conduta
+                </h4>
+                
+                <div className="space-y-4">
+                  {selectedActions.map((actionIdx, userPos) => {
+                    const correctPos = safeOrderIndices.indexOf(actionIdx);
+                    const isCorrect = correctPos !== -1;
+                    const onTime = correctPos === userPos;
+
+                    return (
+                      <div key={userPos} className={`p-5 rounded-2xl border-2 flex items-center justify-between gap-4
+                        ${!isCorrect ? 'bg-red-50 border-red-100' : onTime ? 'bg-green-50 border-green-100' : 'bg-yellow-50 border-yellow-100'}
+                      `}>
+                        <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-sm
+                            ${!isCorrect ? 'bg-red-500 text-white' : onTime ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}
+                          `}>
+                            {userPos + 1}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">{safeActionCloud[actionIdx]}</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest mt-1">
+                              {!isCorrect ? '❌ Ação Incorreta' : onTime ? '✅ Perfeito' : `⚠️ Fora de Ordem (Era o ${correctPos + 1}º)`}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="bg-[#003366] p-10 rounded-[2.5rem] shadow-2xl text-white">
+                <h4 className="text-lg font-black text-[#D4A017] uppercase mb-8 pb-4 border-b border-white/10 flex items-center gap-3">
+                  <span>🏆</span> Gabarito Padrão-Ouro
+                </h4>
+                <div className="space-y-3">
+                  {safeOrderIndices.map((idx, i) => (
+                    <div key={i} className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+                      <span className="text-[#D4A017] font-black text-sm">{i + 1}.</span>
+                      <p className="text-sm font-medium">{safeActionCloud[idx]}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-6 flex justify-center">
+                <button 
+                  onClick={onBack}
+                  className="bg-[#D4A017] text-[#003366] px-12 py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl hover:scale-105 transition-all"
+                >
+                  Voltar e Treinar Outra 🩺
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {!isFinished && (
-        <div className="bg-blue-50/50 p-4 rounded-2xl mb-4 border border-blue-100 text-sm shrink-0">
-          <p className="font-bold text-[#003366] mb-1 flex items-center gap-2">
-            <span>💡</span> Dicas de Ouro para a Simulação:
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-gray-600 text-xs font-medium">
-            <li><b>Aja como na vida real:</b> Apresente-se, seja educado. O paciente reage ao seu tom de voz.</li>
-            <li><b>Leia o "Ambiente":</b> Você só pode usar os instrumentos que estão listados na mensagem inicial do sistema (caixa amarela). Se pedir uma Tomografia numa sala de UBS, o sistema não vai aceitar!</li>
-            <li>Para o <b>exame físico</b>, informe o paciente do que está fazendo (ex: <i>"Com licença, vou auscultar seu pulmão agora"</i>).</li>
-          </ul>
-        </div>
-      )}
-
-      <div className="flex-grow overflow-y-auto space-y-6 p-4 md:p-8 bg-white rounded-[2rem] shadow-inner mb-6 border border-gray-100 flex flex-col">
-        {messages.map((msg, i) => (
-           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : msg.role === 'system' ? 'justify-center' : 'justify-start'}`}>
-             <div className={`p-4 max-w-[85%] md:max-w-[70%] rounded-2xl whitespace-pre-wrap leading-relaxed ${
-               msg.role === 'user' ? 'bg-[#003366] text-white rounded-br-sm shadow-md font-medium' :
-               msg.role === 'system' ? 'bg-yellow-50 text-yellow-800 text-xs text-left border border-yellow-200 font-bold w-full shadow-sm' :
-               'bg-gray-50 text-[#003366] font-medium rounded-bl-sm border border-gray-200'
-             }`}>
-               {msg.text}
-             </div>
-           </div>
-        ))}
-        
-        {isLoading && !isFinished && (
-          <div className="flex justify-start">
-            <div className="p-4 bg-gray-50 rounded-2xl rounded-bl-sm border border-gray-200 flex items-center gap-2">
-              <div className="w-2 h-2 bg-[#003366] rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-[#003366] rounded-full animate-bounce delay-75"></div>
-              <div className="w-2 h-2 bg-[#003366] rounded-full animate-bounce delay-150"></div>
-            </div>
-          </div>
-        )}
-        
-        {isFinished && feedback && (
-           <div className="flex justify-center mt-8 animate-in fade-in duration-700">
-             <div className="bg-[#003366] w-full p-8 rounded-[2rem] shadow-xl border-t-8 border-[#D4A017] text-white">
-                <h3 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3 mb-8 border-b border-white/10 pb-4">
-                  <span>🎓</span> Relatório do Preceptor
-                </h3>
-                <div className="text-sm leading-relaxed whitespace-pre-wrap font-medium space-y-4">
-                  {formatFeedback(feedback)}
-                </div>
-             </div>
-           </div>
-        )}
-        <div ref={chatEndRef} />
-      </div>
-
-      <div className="shrink-0 bg-white p-2">
-        {!isFinished ? (
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-2 relative">
-              <input
-                type="text"
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="Ex: 'Olá, sou o Dr. João. Qual a sua queixa?'"
-                className="flex-grow p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 focus:border-[#D4A017] outline-none transition-all font-medium text-[#003366]"
-                disabled={isLoading}
-              />
-              <button 
-                onClick={handleSend} 
-                disabled={isLoading || !input.trim()} 
-                className="bg-[#D4A017] text-[#003366] font-black px-6 md:px-8 rounded-2xl hover:bg-[#003366] hover:text-white transition-all disabled:opacity-50 flex items-center justify-center text-xl shadow-md"
-              >
-                ➤
-              </button>
-            </div>
-            
+        <div className="fixed bottom-10 left-0 right-0 px-4 z-50">
+          <div className="max-w-md mx-auto">
             <button 
-              onClick={handleFinish} 
-              disabled={isLoading || messages.length < 3}
-              className="w-full bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-500 hover:text-white hover:border-red-500 py-4 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-sm"
+              onClick={calculateDetailedScore}
+              className="w-full bg-[#003366] text-white py-6 rounded-[2rem] font-black uppercase text-sm tracking-[0.2em] shadow-2xl border-2 border-[#D4A017] hover:bg-[#D4A017] hover:text-[#003366] transition-all"
             >
-              <span>🛑</span> Finalizar Atendimento e Avaliar
+              Finalizar Atendimento
             </button>
           </div>
-        ) : (
-          <button 
-            onClick={onBack}
-            className="w-full bg-[#D4A017] text-[#003366] py-5 rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-xl hover:scale-105 transition-all"
-          >
-            Voltar para o Menu
-          </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default OsceAIView;
+export default OsceView;
