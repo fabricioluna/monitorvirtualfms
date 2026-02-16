@@ -26,7 +26,10 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
   const currentSetting = station.setting || defaultSetting;
 
   const [messages, setMessages] = useState<{role: 'user'|'patient'|'system', text: string}[]>([
-    { role: 'system', text: `🩺 SIMULAÇÃO INICIADA\n\n📍 AMBIENTE: ${currentSetting}\n\n📝 CENÁRIO: ${station.scenario}\n\n🎯 TAREFA: ${station.task}\n\n(O paciente aguarda a sua abordagem...)` }
+    { 
+      role: 'system', 
+      text: `🩺 SIMULAÇÃO INICIADA\n\n📍 AMBIENTE:\n${currentSetting}\n\n📝 CENÁRIO CLÍNICO:\n${station.scenario}\n\n🎯 TAREFA:\n${station.task}\n\n---\n💬 O paciente acaba de entrar e aguarda a sua abordagem...` 
+    }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -136,7 +139,7 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
           </p>
           <ul className="list-disc pl-5 space-y-1 text-gray-600 text-xs font-medium">
             <li><b>Aja como na vida real:</b> Apresente-se, seja educado. O paciente reage ao seu tom de voz.</li>
-            <li><b>Leia o "Ambiente":</b> Você só pode usar os instrumentos que estão listados na mensagem inicial do sistema (caixa amarela). Se pedir uma Tomografia numa sala de UBS, o sistema não vai aceitar!</li>
+            <li><b>Leia o "Ambiente":</b> Você só pode usar os instrumentos listados na caixa de cenário inicial. O sistema bloqueará o uso de recursos inexistentes!</li>
             <li>Para o <b>exame físico</b>, informe o paciente do que está fazendo (ex: <i>"Com licença, vou auscultar seu pulmão agora"</i>).</li>
           </ul>
         </div>
@@ -145,17 +148,16 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
       <div className="flex-grow overflow-y-auto space-y-6 p-4 md:p-8 bg-white rounded-[2rem] shadow-inner mb-6 border border-gray-100 flex flex-col">
         {messages.map((msg, i) => (
            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : msg.role === 'system' ? 'justify-center' : 'justify-start'}`}>
-             <div className={`p-4 max-w-[85%] md:max-w-[70%] rounded-2xl whitespace-pre-wrap leading-relaxed ${
-               msg.role === 'user' ? 'bg-[#003366] text-white rounded-br-sm shadow-md font-medium' :
-               msg.role === 'system' ? 'bg-yellow-50 text-yellow-800 text-xs text-left border border-yellow-200 font-bold w-full shadow-sm' :
-               'bg-gray-50 text-[#003366] font-medium rounded-bl-sm border border-gray-200'
+             <div className={`whitespace-pre-wrap leading-relaxed ${
+               msg.role === 'user' ? 'p-4 max-w-[85%] md:max-w-[70%] rounded-2xl bg-[#003366] text-white rounded-br-sm shadow-md font-medium' :
+               msg.role === 'system' ? 'p-6 md:p-10 w-full rounded-[2rem] bg-yellow-50/80 text-yellow-900 text-sm md:text-base text-left border-2 border-yellow-200 shadow-sm font-medium mb-4' :
+               'p-4 max-w-[85%] md:max-w-[70%] rounded-2xl bg-gray-50 text-[#003366] font-medium rounded-bl-sm border border-gray-200 shadow-sm'
              }`}>
                {msg.text}
              </div>
            </div>
         ))}
         
-        {/* Loading para as respostas normais de chat */}
         {isLoading && !isFinished && (
           <div className="flex justify-start">
             <div className="p-4 bg-gray-50 rounded-2xl rounded-bl-sm border border-gray-200 flex items-center gap-2">
@@ -166,7 +168,6 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
           </div>
         )}
 
-        {/* NOVO: Loading especial gigante para o Relatório do Preceptor */}
         {isLoading && isFinished && !feedback && (
           <div className="flex justify-center mt-8 animate-in fade-in duration-500">
             <div className="bg-white p-8 rounded-[2rem] shadow-lg border-2 border-dashed border-[#D4A017] flex flex-col items-center justify-center gap-4 text-[#003366] w-full md:w-3/4">
@@ -181,11 +182,11 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
         
         {isFinished && feedback && (
            <div className="flex justify-center mt-8 animate-in fade-in duration-700">
-             <div className="bg-[#003366] w-full p-8 rounded-[2rem] shadow-xl border-t-8 border-[#D4A017] text-white">
+             <div className="bg-[#003366] w-full p-8 md:p-12 rounded-[2rem] shadow-xl border-t-8 border-[#D4A017] text-white">
                 <h3 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3 mb-8 border-b border-white/10 pb-4">
                   <span>🎓</span> Relatório do Preceptor
                 </h3>
-                <div className="text-sm leading-relaxed whitespace-pre-wrap font-medium space-y-4">
+                <div className="text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium space-y-4">
                   {formatFeedback(feedback)}
                 </div>
              </div>
