@@ -5,7 +5,7 @@ import DisciplineView from './views/DisciplineView.tsx';
 import QuizSetupView from './views/QuizSetupView.tsx';
 import QuizView from './views/QuizView.tsx';
 import AdminView from './views/AdminView.tsx';
-import SummariesListView from './views/SummariesListView.tsx'; // CENTRAL DE MATERIAIS
+import SummariesListView from './views/SummariesListView.tsx';
 import OsceView from './views/OsceView.tsx';
 import OsceSetupView from './views/OsceSetupView.tsx';
 import OsceAIView from './views/OsceAIView.tsx';
@@ -17,7 +17,7 @@ import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult, 
 import { INITIAL_QUESTIONS, SIMULATIONS } from './constants.tsx';
 import { db, ref, onValue, push, remove, set } from './firebase.ts';
 
-const APP_VERSION = "5.2.0 - Central de Materiais unificada";
+const APP_VERSION = "5.2.0 - Central de Materiais Unificada";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
@@ -162,7 +162,7 @@ const App: React.FC = () => {
         )}
         {currentView === 'quiz' && <QuizView questions={quizFilteredQuestions} discipline={currentDiscipline!} onBack={() => setCurrentView('quiz-setup')} onSaveResult={(score, total) => db && push(ref(db, 'quizResults'), { score, total, date: new Date().toLocaleString(), discipline: currentDiscipline?.title })} />}
         
-        {/* A NOVA CENTRAL DE MATERIAIS (Lida com tudo!) */}
+        {/* A NOVA CENTRAL DE MATERIAIS */}
         {currentView === 'summaries-list' && selectedDisciplineId && (
           <SummariesListView 
             disciplineId={selectedDisciplineId} 
