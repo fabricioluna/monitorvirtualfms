@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { SimulationInfo, Question } from '../types';
 
@@ -7,20 +6,19 @@ interface QuizSetupViewProps {
   availableQuestions: Question[];
   onStart: (filteredQuestions: Question[]) => void;
   onBack: () => void;
-  isPracticalMode?: boolean; 
 }
 
-const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQuestions, onStart, onBack, isPracticalMode = false }) => {
+const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQuestions, onStart, onBack }) => {
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(10);
 
+  // Removido o filtro de "isPractical", agora puxa TODAS as questões do tema
   const totalAvailableInSelectedThemes = useMemo(() => {
     return availableQuestions.filter(q => 
       q.disciplineId === discipline.id && 
-      selectedThemes.includes(q.theme) &&
-      (isPracticalMode ? q.isPractical === true : q.isPractical !== true)
+      selectedThemes.includes(q.theme)
     ).length;
-  }, [availableQuestions, discipline.id, selectedThemes, isPracticalMode]);
+  }, [availableQuestions, discipline.id, selectedThemes]);
 
   const toggleTheme = (theme: string) => {
     setSelectedThemes(prev => 
@@ -45,10 +43,10 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
       return;
     }
 
+    // Removido o filtro de "isPractical"
     let filtered = availableQuestions.filter(q => 
       q.disciplineId === discipline.id && 
-      selectedThemes.includes(q.theme) &&
-      (isPracticalMode ? q.isPractical === true : q.isPractical !== true)
+      selectedThemes.includes(q.theme)
     );
     
     filtered = [...filtered].sort(() => Math.random() - 0.5).slice(0, quantity);
@@ -67,9 +65,9 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
       
       <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100">
         <div className="text-center mb-10">
-          <div className="text-5xl mb-4">{isPracticalMode ? '🔬' : discipline.icon}</div>
+          <div className="text-5xl mb-4">{discipline.icon}</div>
           <h2 className="text-3xl font-black text-[#003366] uppercase mb-2 tracking-tighter">
-            {isPracticalMode ? 'Simulado Prático' : 'Simulado Teórico'}
+            Simulado Teórico
           </h2>
           <p className="text-[#D4A017] text-[10px] font-black uppercase tracking-[0.3em]">{discipline.title}</p>
         </div>
@@ -84,7 +82,8 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {discipline.themes.map(theme => {
-              const count = availableQuestions.filter(q => q.disciplineId === discipline.id && q.theme === theme && (isPracticalMode ? q.isPractical === true : q.isPractical !== true)).length;
+              // Removido o filtro de "isPractical" na contagem da pílula
+              const count = availableQuestions.filter(q => q.disciplineId === discipline.id && q.theme === theme).length;
               const isSelected = selectedThemes.includes(theme);
               return (
                 <button
