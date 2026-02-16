@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header.tsx';
 import HomeView from './views/HomeView.tsx';
@@ -17,7 +16,7 @@ import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult, 
 import { INITIAL_QUESTIONS, SIMULATIONS } from './constants.tsx';
 import { db, ref, onValue, push, remove, set } from './firebase.ts';
 
-const APP_VERSION = "4.2.7 - Full Admin Dashboard";
+const APP_VERSION = "4.4.0 - Preview & Safe Sync";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
@@ -44,16 +43,17 @@ const App: React.FC = () => {
       setIsOnline(snap.val() === true);
     });
 
-    // Sync Disciplinas (Temas e Referências Customizadas)
+    // Sync Seguro de Disciplinas
     onValue(ref(db, 'discipline_config'), (snap) => {
       const config = snap.val();
       if (config) {
         setDisciplines(prev => prev.map(disc => {
-          if (config[disc.id]) {
+          const dConf = config[disc.id];
+          if (dConf) {
             return {
               ...disc,
-              themes: config[disc.id].themes || disc.themes,
-              references: config[disc.id].references || disc.references
+              themes: Array.isArray(dConf.themes) ? dConf.themes : disc.themes,
+              references: Array.isArray(dConf.references) ? dConf.references : disc.references
             };
           }
           return disc;
@@ -61,20 +61,20 @@ const App: React.FC = () => {
       }
     });
 
-    // Outras Coleções
+    // COLEÇÕES SEGURAS: O filtro (k => data[k]) impede que dados 'null' do Firebase quebrem o app
     const collections = [
-      { path: 'questions', setter: (data: any) => setQuestions([...INITIAL_QUESTIONS, ...Object.keys(data).map(k => ({ ...data[k], firebaseId: k }))]) },
-      { path: 'summaries', setter: (data: any) => setSummaries(Object.keys(data).map(k => ({ ...data[k], firebaseId: k }))) },
-      { path: 'osce', setter: (data: any) => setOsceStations(Object.keys(data).map(k => ({ ...data[k], firebaseId: k }))) },
-      { path: 'quizResults', setter: (data: any) => setQuizResults(Object.keys(data).map(k => ({ ...data[k], id: k }))) }
+      { path: 'questions', setter: (data: any) => setQuestions([...INITIAL_QUESTIONS, ...Object.keys(data).filter(k => data[k]).map(k => ({ ...data[k], firebaseId: k }))]) },
+      { path: 'summaries', setter: (data: any) => setSummaries(Object.keys(data).filter(k => data[k]).map(k => ({ ...data[k], firebaseId: k }))) },
+      { path: 'osce', setter: (data: any) => setOsceStations(Object.keys(data).filter(k => data[k]).map(k => ({ ...data[k], firebaseId: k }))) },
+      { path: 'quizResults', setter: (data: any) => setQuizResults(Object.keys(data).filter(k => data[k]).map(k => ({ ...data[k], id: k }))) }
     ];
 
     collections.forEach(col => {
       onValue(ref(db, col.path), (snap) => {
-        if (snap.val()) {
-          col.setter(snap.val());
+        const val = snap.val();
+        if (val) {
+          col.setter(val);
         } else {
-          // Se a coleção estiver vazia mas tiver dados iniciais (como questões)
           if (col.path === 'questions') setQuestions(INITIAL_QUESTIONS);
           if (col.path === 'summaries') setSummaries([]);
           if (col.path === 'osce') setOsceStations([]);
@@ -86,7 +86,6 @@ const App: React.FC = () => {
     setTimeout(() => setIsLoading(false), 2000);
   }, []);
 
-  // HANDLERS ADMIN
   const handleAddTheme = (disciplineId: string, themeName: string) => {
     const disc = disciplines.find(d => d.id === disciplineId);
     if (!disc) return;
