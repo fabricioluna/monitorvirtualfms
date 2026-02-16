@@ -23,9 +23,7 @@ interface AdminViewProps {
   onBack: () => void;
 }
 
-// ==========================================
-// FUNÇÃO PARA LER CSV (Apenas para Questões Múltipla Escolha)
-// ==========================================
+// LER CSV PARA MÚLTIPLA ESCOLHA
 const parseResilientCSV = (text: string, expectedColumns: number) => {
   const rawLines = text.split('\n');
   const mergedLines: string[] = [];
@@ -166,9 +164,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.readAsText(qFile);
   };
 
-  // ==========================================
-  // NOVA IMPORTAÇÃO DE OSCE VIA JSON (PERFEITA)
-  // ==========================================
+  // UPLOAD DO OSCE (JSON BLINDADO)
   const handleOsceImport = (e: React.FormEvent) => {
     e.preventDefault();
     if (!osceFile || !osceDiscipline || !osceTheme) return;
@@ -176,8 +172,12 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        // O Javascript lê o JSON perfeitamente, com parágrafos e tudo!
         const parsedData = JSON.parse(text);
+
+        if (!Array.isArray(parsedData)) {
+          alert('Erro de Estrutura: O arquivo JSON deve ser uma lista (Array) de estações começando com [ e terminando com ].');
+          return;
+        }
         
         const newStations: OsceStation[] = parsedData.map((item: any, idx: number) => ({
           id: `osce_${Date.now()}_${idx}`,
@@ -195,7 +195,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         alert(`${newStations.length} estações OSCE adicionadas com sucesso!`);
         setOsceFile(null);
       } catch (err: any) { 
-        alert('Erro no formato do arquivo JSON. Certifique-se de que a IA gerou um JSON válido.\nDetalhes: ' + err.message); 
+        alert('Erro fatal ao ler JSON. O arquivo tem um erro de formatação (vírgula sobrando ou aspa faltando).\nDetalhes: ' + err.message); 
       }
     };
     reader.readAsText(osceFile);
@@ -299,7 +299,7 @@ const AdminView: React.FC<AdminViewProps> = ({
               <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm">
                 <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Temas de {disciplines.find(d => d.id === selectedDiscId)?.title}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {disciplines.find(d => d.id === selectedDiscId)?.themes.map(theme => (
+                  {disciplines.find(d => d.id === selectedDiscId)?.themes?.map(theme => (
                     <div key={theme} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border group hover:border-[#D4A017] transition-all">
                       <span className="text-xs font-bold text-gray-700">{theme}</span>
                       <button onClick={() => confirm(`Excluir tema "${theme}"?`) && onRemoveTheme(selectedDiscId, theme)} className="text-red-300 hover:text-red-500 transition-colors">
@@ -331,7 +331,7 @@ const AdminView: React.FC<AdminViewProps> = ({
               </select>
               <select value={qTheme} onChange={e => setQTheme(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
                 <option value="">Eixo Temático...</option>
-                {disciplines.find(d => d.id === qDiscipline)?.themes.map(t => <option key={t} value={t}>{t}</option>)}
+                {disciplines.find(d => d.id === qDiscipline)?.themes?.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
               <input type="file" accept=".csv" onChange={e => setQFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" />
               <button type="submit" disabled={!qFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">Subir Questões 🚀</button>
@@ -348,7 +348,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </select>
                     <select value={themeFilter} onChange={e => setThemeFilter(e.target.value)} disabled={!discFilter} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366] disabled:opacity-50 disabled:cursor-not-allowed">
                       <option value="">Todos os Temas</option>
-                      {discFilter && disciplines.find(d => d.id === discFilter)?.themes.map(t => <option key={t} value={t}>{t}</option>)}
+                      {discFilter && disciplines.find(d => d.id === discFilter)?.themes?.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
              </div>
@@ -385,7 +385,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </select>
                 <select value={osceTheme} onChange={e => setOsceTheme(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
                   <option value="">Eixo Temático...</option>
-                  {disciplines.find(d => d.id === osceDiscipline)?.themes.map(t => <option key={t} value={t}>{t}</option>)}
+                  {disciplines.find(d => d.id === osceDiscipline)?.themes?.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <input type="file" accept=".json" onChange={e => setOsceFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" />
                 <button type="submit" disabled={!osceFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">Subir JSON OSCE 🚀</button>
