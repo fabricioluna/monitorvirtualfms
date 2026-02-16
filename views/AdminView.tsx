@@ -60,10 +60,17 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [refType, setRefType] = useState<'book' | 'article' | 'link' | 'video'>('book');
   const [refUrl, setRefUrl] = useState('');
 
+  // States Importar Questões
   const [qDiscipline, setQDiscipline] = useState('');
   const [qTheme, setQTheme] = useState('');
   const [qFile, setQFile] = useState<File | null>(null);
 
+  // States Importar OSCE
+  const [osceDiscipline, setOsceDiscipline] = useState('');
+  const [osceTheme, setOsceTheme] = useState('');
+  const [osceFile, setOsceFile] = useState<File | null>(null);
+
+  // States Materiais
   const [matDisc, setMatDisc] = useState('');
   const [matType, setMatType] = useState<'summary' | 'script'>('summary');
   const [matLabel, setMatLabel] = useState('');
@@ -133,9 +140,40 @@ const AdminView: React.FC<AdminViewProps> = ({
         onAddQuestions(newQs);
         alert(`${newQs.length} questões adicionadas.`);
         setQFile(null);
-      } catch (err) { alert('Erro no CSV.'); }
+      } catch (err) { alert('Erro no CSV de questões.'); }
     };
     reader.readAsText(qFile);
+  };
+
+  const handleOsceImport = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!osceFile || !osceDiscipline || !osceTheme) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n').filter(l => l.trim());
+        // Formato esperado CSV OSCE: Título ; Cenário ; Tarefa ; Checklist (separado por |) ; ActionCloud (separado por |) ; CorrectIndices (separado por |)
+        const newStations: OsceStation[] = lines.slice(1).map((line, idx) => {
+          const parts = line.split(';');
+          return {
+            id: `osce_${Date.now()}_${idx}`,
+            disciplineId: osceDiscipline,
+            theme: osceTheme,
+            title: parts[0]?.trim(),
+            scenario: parts[1]?.trim(),
+            task: parts[2]?.trim(),
+            checklist: parts[3]?.split('|').map(item => item.trim()) || [],
+            actionCloud: parts[4]?.split('|').map(item => item.trim()) || [],
+            correctOrderIndices: parts[5]?.split('|').map(item => parseInt(item.trim(), 10)) || []
+          };
+        });
+        onAddOsceStations(newStations);
+        alert(`${newStations.length} estações OSCE adicionadas.`);
+        setOsceFile(null);
+      } catch (err) { alert('Erro no formato do CSV de OSCE.'); }
+    };
+    reader.readAsText(osceFile);
   };
 
   if (!isAuthorized) {
@@ -330,12 +368,24 @@ const AdminView: React.FC<AdminViewProps> = ({
       {activeTab === 'osce' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-10 duration-500">
            <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
-              <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Adicionar Estação</h3>
-              <p className="text-[10px] text-gray-400 font-bold uppercase mb-4">A ferramenta de criação manual de estações está sendo otimizada. Por enquanto, as estações são carregadas via script de dados.</p>
+              <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Importar OSCE (CSV)</h3>
+              <form onSubmit={handleOsceImport} className="space-y-4">
+                <select value={osceDiscipline} onChange={e => setOsceDiscipline(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
+                  <option value="">Disciplina...</option>
+                  {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                </select>
+                <select value={osceTheme} onChange={e => setOsceTheme(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
+                  <option value="">Eixo Temático...</option>
+                  {disciplines.find(d => d.id === osceDiscipline)?.themes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <input type="file" accept=".csv" onChange={e => setOsceFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" />
+                <button type="submit" disabled={!osceFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">Subir Estações OSCE 🚀</button>
+              </form>
            </div>
+           
            <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
               <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Estações Cadastradas</h3>
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                  {osceStations.map(station => (
                    <div key={station.id} className="p-5 bg-gray-50 rounded-[1.5rem] border flex justify-between items-center hover:border-red-100 group transition-all">
                       <div>
