@@ -6,20 +6,18 @@ interface OsceSetupViewProps {
   availableStations: OsceStation[];
   onStart: (station: OsceStation) => void;
   onBack: () => void;
+  isAIMode?: boolean; // Define se a tela está chamando o Paciente Virtual
 }
 
-const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStations, onStart, onBack }) => {
-  // null = Tela de escolher Tema. string = Tela de escolher Estação daquele tema.
+const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStations, onStart, onBack, isAIMode = false }) => {
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
 
-  // Sorteia uma estação de TODO o banco da disciplina
   const handleSurpriseAll = () => {
     if (availableStations.length === 0) return;
     const randomStation = availableStations[Math.floor(Math.random() * availableStations.length)];
     onStart(randomStation);
   };
 
-  // Sorteia uma estação apenas dentro do tema selecionado
   const handleSurpriseTheme = (theme: string) => {
     const filtered = availableStations.filter(s => s.theme === theme);
     if (filtered.length === 0) return;
@@ -39,11 +37,13 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
       
       <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100">
         <div className="text-center mb-10 border-b pb-8">
-          <div className="text-5xl mb-4">🩺</div>
+          <div className="text-5xl mb-4">{isAIMode ? '🤖' : '🩺'}</div>
           <h2 className="text-3xl font-black text-[#003366] uppercase mb-2 tracking-tighter">
-            Laboratório de Habilidades (OSCE)
+            {isAIMode ? 'Paciente Virtual por IA' : 'Laboratório de Habilidades'}
           </h2>
-          <p className="text-[#D4A017] text-[10px] font-black uppercase tracking-[0.3em]">{discipline.title}</p>
+          <p className="text-[#D4A017] text-[10px] font-black uppercase tracking-[0.3em]">
+            {isAIMode ? 'Treine Anamnese Realista' : discipline.title}
+          </p>
         </div>
 
         {availableStations.length === 0 ? (
@@ -52,29 +52,27 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
               <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Nenhuma estação clínica disponível no momento.</p>
            </div>
         ) : selectedTheme === null ? (
-          // PASSO 1: ESCOLHER O TEMA OU SURPRESA GERAL
           <div>
             <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 text-center">
               1º Passo: Selecione o Eixo de Treinamento
             </label>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              {/* Botão de Surpresa Geral */}
               <button
                 onClick={handleSurpriseAll}
-                className="sm:col-span-2 p-6 bg-[#003366] hover:bg-[#D4A017] text-white hover:text-[#003366] rounded-[1.5rem] transition-all flex items-center justify-between group shadow-lg"
+                className={`sm:col-span-2 p-6 hover:bg-[#D4A017] hover:text-[#003366] rounded-[1.5rem] transition-all flex items-center justify-between group shadow-lg
+                  ${isAIMode ? 'bg-[#001f3f] text-[#D4A017]' : 'bg-[#003366] text-white'}
+                `}
               >
                 <div className="flex items-center gap-5 text-left">
                   <div className="text-4xl group-hover:animate-spin">🎲</div>
                   <div>
-                    <h3 className="text-lg font-black uppercase tracking-tight">Estação Surpresa (Geral)</h3>
+                    <h3 className="text-lg font-black uppercase tracking-tight">Paciente Surpresa (Geral)</h3>
                     <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Sorteia entre todas as {availableStations.length} estações</p>
                   </div>
                 </div>
                 <div className="font-black text-2xl opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all">→</div>
               </button>
 
-              {/* Lista de Temas da Disciplina */}
               {discipline.themes.map(theme => {
                 const count = availableStations.filter(s => s.theme === theme).length;
                 return (
@@ -102,14 +100,11 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
             </div>
           </div>
         ) : (
-          // PASSO 2: ESCOLHER A ESTAÇÃO OU SURPRESA DO TEMA
           <div className="animate-in slide-in-from-right-8 duration-300">
             <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 text-center">
-              2º Passo: Selecione o Cenário de {selectedTheme}
+              2º Passo: Selecione o Caso de {selectedTheme}
             </label>
-            
             <div className="grid grid-cols-1 gap-4">
-              {/* Botão de Surpresa do Tema Específico */}
               <button
                 onClick={() => handleSurpriseTheme(selectedTheme)}
                 className="p-5 bg-[#D4A017] text-[#003366] hover:bg-[#003366] hover:text-white rounded-[1.5rem] transition-all flex items-center justify-between group shadow-md"
@@ -117,14 +112,13 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
                 <div className="flex items-center gap-4 text-left">
                   <div className="text-3xl group-hover:animate-spin">🎲</div>
                   <div>
-                    <h3 className="text-md font-black uppercase tracking-tight">Surpresa neste Eixo</h3>
-                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Sorteia uma estação aleatória de {selectedTheme}</p>
+                    <h3 className="text-md font-black uppercase tracking-tight">Paciente Surpresa neste Eixo</h3>
+                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Sorteia um caso aleatório de {selectedTheme}</p>
                   </div>
                 </div>
                 <div className="font-black text-xl opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all">→</div>
               </button>
 
-              {/* Lista das Estações Específicas do Tema */}
               {availableStations.filter(s => s.theme === selectedTheme).map((station, index) => (
                 <button
                   key={station.id}
