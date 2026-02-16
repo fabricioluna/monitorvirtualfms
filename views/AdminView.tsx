@@ -101,7 +101,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [oscePreview, setOscePreview] = useState<OsceStation[] | null>(null);
 
   const [matDisc, setMatDisc] = useState('');
-  const [matType, setMatType] = useState<'summary' | 'script'>('summary');
+  const [matType, setMatType] = useState<'summary' | 'script' | 'other'>('summary');
   const [matLabel, setMatLabel] = useState('');
   const [matUrl, setMatUrl] = useState('');
   const [isFolder, setIsFolder] = useState(false);
@@ -442,7 +442,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      {/* VIEW: OSCE COM PREVIEW E NOVO SETTING */}
+      {/* VIEW: OSCE COM PREVIEW */}
       {activeTab === 'osce' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-10 duration-500">
            <div className="lg:col-span-4 space-y-6 h-fit">
@@ -632,7 +632,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 disciplineId: matDisc,
                 label: matLabel,
                 url: matUrl,
-                type: matType,
+                type: matType, 
                 isFolder: isFolder,
                 date: new Date().toLocaleDateString('pt-BR')
               });
@@ -642,6 +642,13 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <option value="">Disciplina...</option>
                 {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
               </select>
+              
+              <select value={matType} onChange={e => setMatType(e.target.value as any)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm" required>
+                <option value="summary">Resumo Teórico</option>
+                <option value="script">Roteiro de Prática</option>
+                <option value="other">Outro / Material Extra</option>
+              </select>
+
               <input type="text" placeholder="Título do Material" value={matLabel} onChange={e => setMatLabel(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm" required />
               <input type="url" placeholder="Link Google Drive" value={matUrl} onChange={e => setMatUrl(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm" required />
               <div onClick={() => setIsFolder(!isFolder)} className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl cursor-pointer">
@@ -683,7 +690,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                        <span className="text-2xl">{s.isFolder ? '📂' : '📑'}</span>
                        <div>
                           <p className="text-xs font-bold text-[#003366]">{s.label}</p>
-                          <p className="text-[8px] font-black uppercase text-gray-400">{s.disciplineId} • {s.date}</p>
+                          <p className="text-[8px] font-black uppercase text-gray-400">
+                            {s.disciplineId} • {s.type === 'summary' ? 'Resumo' : s.type === 'script' ? 'Roteiro' : 'Outro'} • {s.date}
+                          </p>
                        </div>
                     </div>
                     <button onClick={() => confirm("Excluir material?") && onRemoveSummary(s.id)} className="text-red-300 hover:text-red-500 transition-colors">
