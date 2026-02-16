@@ -6,9 +6,10 @@ interface SummariesListViewProps {
   disciplines: SimulationInfo[];
   summaries: Summary[];
   onBack: () => void;
+  onShareClick?: () => void; // NOVO: Prop para abrir o formulário
 }
 
-const SummariesListView: React.FC<SummariesListViewProps> = ({ disciplineId, disciplines, summaries, onBack }) => {
+const SummariesListView: React.FC<SummariesListViewProps> = ({ disciplineId, disciplines, summaries, onBack, onShareClick }) => {
   const discipline = disciplines.find(d => d.id === disciplineId);
   const disciplineSummaries = summaries.filter(s => s.disciplineId === disciplineId);
 
@@ -64,11 +65,21 @@ const SummariesListView: React.FC<SummariesListViewProps> = ({ disciplineId, dis
         Voltar à Disciplina
       </button>
 
-      <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100">
-        <div className="text-center mb-12">
+      <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100 relative">
+        <div className="text-center mb-10 border-b border-gray-100 pb-10">
           <div className="text-5xl mb-4">📂</div>
           <h2 className="text-3xl font-black text-[#003366] uppercase mb-2 tracking-tighter">Central de Materiais</h2>
-          <p className="text-[#D4A017] text-[10px] font-black uppercase tracking-[0.3em]">{discipline.title}</p>
+          <p className="text-[#D4A017] text-[10px] font-black uppercase tracking-[0.3em] mb-6">{discipline.title}</p>
+          
+          {/* AQUI ESTÁ O NOVO BOTÃO DE COMPARTILHAMENTO GIGANTE! */}
+          {onShareClick && (
+            <button 
+              onClick={onShareClick} 
+              className="inline-flex items-center gap-2 bg-[#003366] text-white px-8 py-4 rounded-full font-black uppercase text-xs tracking-widest shadow-xl hover:bg-[#D4A017] hover:text-[#003366] hover:scale-105 transition-all"
+            >
+              <span>+</span> Contribuir com Material
+            </button>
+          )}
         </div>
 
         {renderList(resumos, "Nenhum resumo adicionado", "📑", "Resumos Teóricos")}
