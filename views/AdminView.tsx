@@ -23,6 +23,32 @@ interface AdminViewProps {
   onBack: () => void;
 }
 
+// ==========================================
+// FUNÇÃO BLINDADA PARA LER CSV QUEBRADO
+// ==========================================
+const parseResilientCSV = (text: string, expectedColumns: number) => {
+  const rawLines = text.split('\n');
+  const mergedLines: string[] = [];
+  let currentLine = '';
+
+  for (const line of rawLines) {
+    if (!line.trim() && !currentLine) continue;
+    
+    // Cola a linha atual com a próxima, substituindo a quebra por um espaço
+    currentLine = currentLine ? currentLine + ' ' + line.trim() : line.trim();
+    
+    // Conta quantos pontos e vírgulas existem na linha colada
+    const semicolonCount = (currentLine.match(/;/g) || []).length;
+    
+    // Se atingiu o número esperado de colunas, a linha está completa!
+    if (semicolonCount >= expectedColumns - 1) {
+      mergedLines.push(currentLine);
+      currentLine = '';
+    }
+  }
+  return mergedLines;
+};
+
 const AdminView: React.FC<AdminViewProps> = ({
   questions,
   osceStations,
@@ -122,25 +148,27 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        const lines = text.split('\n').filter(l => l.trim());
+        // Usa o leitor blindado esperando 8 colunas (Pergunta + 4 Opções + Resposta + Explicacao + Pratica)
+        const lines = parseResilientCSV(text, 8); 
+        
         const newQs: Question[] = lines.slice(1).map((line, idx) => {
           const parts = line.split(';');
           return {
             id: `q_${Date.now()}_${idx}`,
             disciplineId: qDiscipline,
             theme: qTheme,
-            q: parts[0],
-            options: [parts[1], parts[2], parts[3], parts[4]],
-            answer: parseInt(parts[5]),
-            explanation: parts[6] || '',
-            tag: parts[7] === 'true' ? 'Prática' : 'Teórica',
-            isPractical: parts[7] === 'true'
+            q: parts[0]?.trim() || '',
+            options: [parts[1]?.trim() || '', parts[2]?.trim() || '', parts[3]?.trim() || '', parts[4]?.trim() || ''],
+            answer: parseInt(parts[5]?.trim() || '0'),
+            explanation: parts[6]?.trim() || '',
+            tag: parts[7]?.trim() === 'true' ? 'Prática' : 'Teórica',
+            isPractical: parts[7]?.trim() === 'true'
           };
         });
         onAddQuestions(newQs);
-        alert(`${newQs.length} questões adicionadas.`);
+        alert(`${newQs.length} questões adicionadas com sucesso!`);
         setQFile(null);
-      } catch (err) { alert('Erro no CSV de questões.'); }
+      } catch (err) { alert('Erro inesperado ao ler o CSV de questões.'); }
     };
     reader.readAsText(qFile);
   };
@@ -152,26 +180,27 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        const lines = text.split('\n').filter(l => l.trim());
-        // Formato esperado CSV OSCE: Título ; Cenário ; Tarefa ; Checklist (separado por |) ; ActionCloud (separado por |) ; CorrectIndices (separado por |)
+        // Usa o leitor blindado esperando 6 colunas (Título, Cenário, Tarefa, Checklist, ActionCloud, OrdemCorreta)
+        const lines = parseResilientCSV(text, 6);
+        
         const newStations: OsceStation[] = lines.slice(1).map((line, idx) => {
           const parts = line.split(';');
           return {
             id: `osce_${Date.now()}_${idx}`,
             disciplineId: osceDiscipline,
             theme: osceTheme,
-            title: parts[0]?.trim(),
-            scenario: parts[1]?.trim(),
-            task: parts[2]?.trim(),
+            title: parts[0]?.trim() || '',
+            scenario: parts[1]?.trim() || '',
+            task: parts[2]?.trim() || '',
             checklist: parts[3]?.split('|').map(item => item.trim()) || [],
             actionCloud: parts[4]?.split('|').map(item => item.trim()) || [],
             correctOrderIndices: parts[5]?.split('|').map(item => parseInt(item.trim(), 10)) || []
           };
         });
         onAddOsceStations(newStations);
-        alert(`${newStations.length} estações OSCE adicionadas.`);
+        alert(`${newStations.length} estações OSCE adicionadas com sucesso!`);
         setOsceFile(null);
-      } catch (err) { alert('Erro no formato do CSV de OSCE.'); }
+      } catch (err) { alert('Erro inesperado ao ler o formato do CSV de OSCE.'); }
     };
     reader.readAsText(osceFile);
   };
