@@ -15,7 +15,6 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
   // PROTEÇÃO MÁXIMA: Garante que mesmo se o Firebase devolver dados corrompidos, o app não quebra
   const safeActionCloud = station.actionCloud || [];
   const safeOrderIndices = station.correctOrderIndices || [];
-  const safeChecklist = station.checklist || [];
 
   useEffect(() => {
     let interval: any;
@@ -84,6 +83,16 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
             <h3 className="text-[10px] font-black text-[#D4A017] uppercase mb-4 tracking-widest">🎯 Comandos</h3>
             <p className="text-sm font-bold leading-relaxed">{station.task}</p>
           </div>
+
+          {/* CAIXA DE DICA DO PRECEPTOR */}
+          {station.tip && (
+            <div className="bg-yellow-50 p-6 rounded-[2rem] border border-yellow-200 shadow-sm animate-in fade-in duration-500">
+              <h3 className="text-[10px] font-black text-yellow-600 uppercase mb-2 tracking-widest flex items-center gap-2">
+                <span>💡</span> Dica do Preceptor
+              </h3>
+              <p className="text-sm font-medium text-yellow-800 leading-relaxed">{station.tip}</p>
+            </div>
+          )}
 
           {!isFinished && (
             <div className="bg-white p-6 rounded-2xl border border-gray-100 flex items-center justify-between">
