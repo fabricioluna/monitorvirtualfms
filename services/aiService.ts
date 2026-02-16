@@ -1,19 +1,25 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// No Cloud Run/Vercel, esta chave deve estar nas variáveis de ambiente
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(API_KEY);
+// Já não importamos o Google SDK aqui! O frontend agora é "burro" e seguro.
 
 export const getAIResponse = async (prompt: string, context: string = "") => {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const fullPrompt = `Contexto acadêmico (FMS): ${context}\n\nPergunta do aluno: ${prompt}`;
-    
-    const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
-    return response.text();
+    // Fazemos um pedido à nossa própria Vercel
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt, context }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro no servidor: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.text; // Retorna o texto gerado pela IA
+
   } catch (error) {
-    console.error("Erro na IA:", error);
-    return "Desculpe, tive um problema ao processar sua dúvida. Tente novamente em instantes.";
+    console.error("Erro na comunicação com a API segura:", error);
+    return "Desculpe, tive um problema ao processar a sua dúvida. Tente novamente em instantes.";
   }
 };
