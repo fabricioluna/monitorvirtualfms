@@ -8,6 +8,7 @@ import AdminView from './views/AdminView.tsx';
 import SummariesListView from './views/SummariesListView.tsx';
 import OsceView from './views/OsceView.tsx';
 import OsceSetupView from './views/OsceSetupView.tsx';
+import OsceAIView from './views/OsceAIView.tsx'; // IMPORTAÇÃO DA IA
 import CalculatorsView from './views/CalculatorsView.tsx';
 import CareerQuiz from './components/CareerQuiz.tsx';
 import ReferencesView from './views/ReferencesView.tsx';
@@ -16,13 +17,15 @@ import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult, 
 import { INITIAL_QUESTIONS, SIMULATIONS } from './constants.tsx';
 import { db, ref, onValue, push, remove, set } from './firebase.ts';
 
-const APP_VERSION = "4.5.0 - Secure Deletion & Filters";
+const APP_VERSION = "5.0.0 - IA Virtual Patient";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [selectedDisciplineId, setSelectedDisciplineId] = useState<string | null>(null);
   const [quizFilteredQuestions, setQuizFilteredQuestions] = useState<Question[]>([]);
+  
   const [currentOsceStation, setCurrentOsceStation] = useState<OsceStation | null>(null);
+  const [currentOsceAIStation, setCurrentOsceAIStation] = useState<OsceStation | null>(null); // ESTADO PARA IA
   
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
@@ -135,6 +138,7 @@ const App: React.FC = () => {
       <div className="flex-grow">
         {currentView === 'home' && <HomeView disciplines={disciplines} onSelectDiscipline={handleSelectDiscipline} />}
         {currentView === 'career-quiz' && <CareerQuiz onBack={() => setCurrentView('home')} />}
+        
         {currentView === 'discipline' && selectedDisciplineId && (
           <DisciplineView 
             disciplineId={selectedDisciplineId} 
@@ -144,8 +148,10 @@ const App: React.FC = () => {
             onSelectOption={(type) => setCurrentView(type as ViewState)}
           />
         )}
+        
         {currentView === 'references-view' && currentDiscipline && <ReferencesView discipline={currentDiscipline} onBack={() => setCurrentView('discipline')} />}
         {currentView === 'share-material' && currentDiscipline && <ShareMaterialView discipline={currentDiscipline} onShare={(s) => db && push(ref(db, 'summaries'), s)} onBack={() => setCurrentView('discipline')} />}
+        
         {currentView === 'quiz-setup' && selectedDisciplineId && (
           <QuizSetupView 
             discipline={disciplines.find(s => s.id === selectedDisciplineId)!}
@@ -155,8 +161,11 @@ const App: React.FC = () => {
           />
         )}
         {currentView === 'quiz' && <QuizView questions={quizFilteredQuestions} discipline={currentDiscipline!} onBack={() => setCurrentView('quiz-setup')} onSaveResult={(score, total) => db && push(ref(db, 'quizResults'), { score, total, date: new Date().toLocaleString(), discipline: currentDiscipline?.title })} />}
+        
         {currentView === 'summaries-list' && selectedDisciplineId && <SummariesListView disciplineId={selectedDisciplineId} disciplines={disciplines} summaries={summaries} onBack={() => setCurrentView('discipline')} mode="summary" />}
         {currentView === 'scripts-list' && selectedDisciplineId && <SummariesListView disciplineId={selectedDisciplineId} disciplines={disciplines} summaries={summaries} onBack={() => setCurrentView('discipline')} mode="script" />}
+        
+        {/* OSCE NORMAL */}
         {currentView === 'osce-setup' && selectedDisciplineId && (
           <OsceSetupView 
             discipline={disciplines.find(s => s.id === selectedDisciplineId)!}
@@ -166,6 +175,19 @@ const App: React.FC = () => {
           />
         )}
         {currentView === 'osce-quiz' && currentOsceStation && <OsceView station={currentOsceStation} onBack={() => setCurrentView('osce-setup')} />}
+
+        {/* OSCE INTELIGENTE (IA) */}
+        {currentView === 'osce-ai-setup' && selectedDisciplineId && (
+          <OsceSetupView 
+            discipline={disciplines.find(s => s.id === selectedDisciplineId)!}
+            availableStations={osceStations.filter(s => s.disciplineId === selectedDisciplineId)}
+            onBack={() => setCurrentView('discipline')}
+            onStart={(station) => { setCurrentOsceAIStation(station); setCurrentView('osce-ai-quiz'); }}
+            isAIMode={true}
+          />
+        )}
+        {currentView === 'osce-ai-quiz' && currentOsceAIStation && <OsceAIView station={currentOsceAIStation} onBack={() => setCurrentView('osce-ai-setup')} />}
+
         {currentView === 'calculators' && <CalculatorsView onBack={() => setCurrentView('home')} />}
         
         {currentView === 'admin' && (
@@ -182,8 +204,6 @@ const App: React.FC = () => {
             onAddOsceStations={(os) => db && os.forEach(o => push(ref(db, 'osce'), o))}
             onRemoveQuestion={(id) => { const q = questions.find(item => item.id === id); if (db && q?.firebaseId) remove(ref(db, `questions/${q.firebaseId}`)); }}
             onRemoveOsceStation={(id) => { const o = osceStations.find(item => item.id === id); if (db && o?.firebaseId) remove(ref(db, `osce/${o.firebaseId}`)); }}
-            
-            // FUNÇÕES GLOBAIS DE APAGAR O BANCO DE DADOS
             onClearDatabase={() => {
               if (db) {
                 remove(ref(db, 'questions'));
@@ -193,8 +213,6 @@ const App: React.FC = () => {
               }
             }}
             onClearResults={() => db && remove(ref(db, 'quizResults'))}
-            
-            // NOVAS FUNÇÕES PARA APAGAR DADOS ESPECÍFICOS POR DISCIPLINA
             onClearQuestions={(discId) => {
               if (db) {
                 if (discId) {
@@ -222,7 +240,6 @@ const App: React.FC = () => {
                 }
               }
             }}
-
             onAddTheme={handleAddTheme}
             onRemoveTheme={handleRemoveTheme}
             onUpdateReferences={handleUpdateReferences}
