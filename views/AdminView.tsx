@@ -24,7 +24,7 @@ interface AdminViewProps {
 }
 
 // ==========================================
-// FUNÇÃO BLINDADA PARA LER CSV QUEBRADO
+// FUNÇÃO PARA LER CSV (Apenas para Questões Múltipla Escolha)
 // ==========================================
 const parseResilientCSV = (text: string, expectedColumns: number) => {
   const rawLines = text.split('\n');
@@ -35,24 +35,15 @@ const parseResilientCSV = (text: string, expectedColumns: number) => {
     const line = rawLines[i].replace(/\r/g, '').trim();
     if (!line && !currentLine) continue;
     
-    // Cola a linha atual com a próxima, substituindo a quebra de linha por um espaço
     currentLine = currentLine ? currentLine + ' ' + line : line;
-    
-    // Conta quantos pontos e vírgulas existem na linha colada
     const semicolonCount = (currentLine.match(/;/g) || []).length;
     
-    // Se atingiu o número esperado de colunas, a linha está completa!
     if (semicolonCount >= expectedColumns - 1) {
       mergedLines.push(currentLine);
       currentLine = '';
     }
   }
-  
-  // Caso o arquivo termine e ainda haja algo no buffer
-  if (currentLine) {
-    mergedLines.push(currentLine);
-  }
-  
+  if (currentLine) mergedLines.push(currentLine);
   return mergedLines;
 };
 
@@ -79,11 +70,9 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<'questions' | 'osce' | 'stats' | 'references' | 'materials' | 'themes'>('stats');
   
-  // Filtros de Lista
   const [discFilter, setDiscFilter] = useState('');
   const [themeFilter, setThemeFilter] = useState('');
 
-  // States para Formulários
   const [selectedDiscId, setSelectedDiscId] = useState('');
   const [newTheme, setNewTheme] = useState('');
   
@@ -92,17 +81,14 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [refType, setRefType] = useState<'book' | 'article' | 'link' | 'video'>('book');
   const [refUrl, setRefUrl] = useState('');
 
-  // States Importar Questões
   const [qDiscipline, setQDiscipline] = useState('');
   const [qTheme, setQTheme] = useState('');
   const [qFile, setQFile] = useState<File | null>(null);
 
-  // States Importar OSCE
   const [osceDiscipline, setOsceDiscipline] = useState('');
   const [osceTheme, setOsceTheme] = useState('');
   const [osceFile, setOsceFile] = useState<File | null>(null);
 
-  // States Materiais
   const [matDisc, setMatDisc] = useState('');
   const [matType, setMatType] = useState<'summary' | 'script'>('summary');
   const [matLabel, setMatLabel] = useState('');
@@ -154,7 +140,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        // Esperamos 8 colunas (Pergunta + 4 Opções + Resposta + Explicacao + Pratica)
         const lines = parseResilientCSV(text, 8); 
         
         const newQs: Question[] = lines.slice(1).map((line, idx) => {
@@ -175,12 +160,15 @@ const AdminView: React.FC<AdminViewProps> = ({
         alert(`${newQs.length} questões adicionadas com sucesso!`);
         setQFile(null);
       } catch (err: any) { 
-        alert('Erro inesperado ao ler o CSV de questões: ' + err.message); 
+        alert('Erro ao ler o CSV de questões: ' + err.message); 
       }
     };
     reader.readAsText(qFile);
   };
 
+  // ==========================================
+  // NOVA IMPORTAÇÃO DE OSCE VIA JSON (PERFEITA)
+  // ==========================================
   const handleOsceImport = (e: React.FormEvent) => {
     e.preventDefault();
     if (!osceFile || !osceDiscipline || !osceTheme) return;
@@ -188,35 +176,26 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        // Esperamos 6 colunas (Título, Cenário, Tarefa, Checklist, ActionCloud, OrdemCorreta)
-        const lines = parseResilientCSV(text, 6);
+        // O Javascript lê o JSON perfeitamente, com parágrafos e tudo!
+        const parsedData = JSON.parse(text);
         
-        const newStations: OsceStation[] = lines.slice(1).map((line, idx) => {
-          const parts = line.split(';');
-          
-          // Proteção extra contra undefined para nunca mais gerar o erro "Cannot read properties of undefined (reading 'map')"
-          const safeChecklist = parts[3] || '';
-          const safeActionCloud = parts[4] || '';
-          const safeOrder = parts[5] || '';
-
-          return {
-            id: `osce_${Date.now()}_${idx}`,
-            disciplineId: osceDiscipline,
-            theme: osceTheme,
-            title: parts[0]?.trim() || '',
-            scenario: parts[1]?.trim() || '',
-            task: parts[2]?.trim() || '',
-            checklist: safeChecklist.split('|').map(item => item.trim()).filter(Boolean),
-            actionCloud: safeActionCloud.split('|').map(item => item.trim()).filter(Boolean),
-            correctOrderIndices: safeOrder.split('|').map(item => parseInt(item.trim(), 10)).filter(n => !isNaN(n))
-          };
-        });
+        const newStations: OsceStation[] = parsedData.map((item: any, idx: number) => ({
+          id: `osce_${Date.now()}_${idx}`,
+          disciplineId: osceDiscipline,
+          theme: osceTheme,
+          title: item.title || 'Estação sem título',
+          scenario: item.scenario || '',
+          task: item.task || '',
+          checklist: Array.isArray(item.checklist) ? item.checklist : [],
+          actionCloud: Array.isArray(item.actionCloud) ? item.actionCloud : [],
+          correctOrderIndices: Array.isArray(item.correctOrderIndices) ? item.correctOrderIndices : []
+        }));
         
         onAddOsceStations(newStations);
         alert(`${newStations.length} estações OSCE adicionadas com sucesso!`);
         setOsceFile(null);
       } catch (err: any) { 
-        alert('Erro no formato do CSV de OSCE: ' + err.message); 
+        alert('Erro no formato do arquivo JSON. Certifique-se de que a IA gerou um JSON válido.\nDetalhes: ' + err.message); 
       }
     };
     reader.readAsText(osceFile);
@@ -340,7 +319,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      {/* VIEW: QUESTÕES (IMPORT E GESTÃO) */}
+      {/* VIEW: QUESTÕES */}
       {activeTab === 'questions' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in zoom-in duration-500">
           <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
@@ -362,31 +341,17 @@ const AdminView: React.FC<AdminViewProps> = ({
           <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter">Gestão de Questões</h3>
-                
                 <div className="flex flex-wrap gap-2">
-                    <select 
-                      value={discFilter} 
-                      onChange={e => { setDiscFilter(e.target.value); setThemeFilter(''); }} 
-                      className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]"
-                    >
+                    <select value={discFilter} onChange={e => { setDiscFilter(e.target.value); setThemeFilter(''); }} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]">
                       <option value="">Todas Disciplinas</option>
                       {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
                     </select>
-
-                    <select 
-                      value={themeFilter} 
-                      onChange={e => setThemeFilter(e.target.value)} 
-                      disabled={!discFilter}
-                      className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
+                    <select value={themeFilter} onChange={e => setThemeFilter(e.target.value)} disabled={!discFilter} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366] disabled:opacity-50 disabled:cursor-not-allowed">
                       <option value="">Todos os Temas</option>
-                      {discFilter && disciplines.find(d => d.id === discFilter)?.themes.map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
+                      {discFilter && disciplines.find(d => d.id === discFilter)?.themes.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
              </div>
-
              <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
                 {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter)).map(q => (
                   <div key={q.id} className="p-4 bg-gray-50 rounded-2xl border flex justify-between items-start gap-4 group hover:border-red-100 transition-all">
@@ -397,9 +362,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                          <span className="text-[8px] font-black uppercase tracking-widest bg-white px-2 py-0.5 rounded border text-[#D4A017]">{q.theme}</span>
                       </div>
                     </div>
-                    <button onClick={() => confirm("Excluir esta questão?") && onRemoveQuestion(q.id)} className="text-red-300 hover:text-red-500 transition-colors pt-1">
-                      <Trash2 size={16}/>
-                    </button>
+                    <button onClick={() => confirm("Excluir esta questão?") && onRemoveQuestion(q.id)} className="text-red-300 hover:text-red-500 transition-colors pt-1"><Trash2 size={16}/></button>
                   </div>
                 ))}
                 {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter)).length === 0 && (
@@ -414,7 +377,7 @@ const AdminView: React.FC<AdminViewProps> = ({
       {activeTab === 'osce' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-10 duration-500">
            <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
-              <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Importar OSCE (CSV)</h3>
+              <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Importar OSCE (JSON)</h3>
               <form onSubmit={handleOsceImport} className="space-y-4">
                 <select value={osceDiscipline} onChange={e => setOsceDiscipline(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
                   <option value="">Disciplina...</option>
@@ -424,8 +387,8 @@ const AdminView: React.FC<AdminViewProps> = ({
                   <option value="">Eixo Temático...</option>
                   {disciplines.find(d => d.id === osceDiscipline)?.themes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <input type="file" accept=".csv" onChange={e => setOsceFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" />
-                <button type="submit" disabled={!osceFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">Subir Estações OSCE 🚀</button>
+                <input type="file" accept=".json" onChange={e => setOsceFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" />
+                <button type="submit" disabled={!osceFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">Subir JSON OSCE 🚀</button>
               </form>
            </div>
            
