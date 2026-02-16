@@ -17,6 +17,9 @@ interface AdminViewProps {
   onRemoveOsceStation: (id: string) => void;
   onClearDatabase: () => void;
   onClearResults: () => void;
+  onClearQuestions: (disciplineId?: string) => void;
+  onClearOsce: (disciplineId?: string) => void;
+  onClearMaterials: (disciplineId?: string) => void;
   onAddTheme: (disciplineId: string, themeName: string) => void;
   onRemoveTheme: (disciplineId: string, themeName: string) => void;
   onUpdateReferences: (disciplineId: string, refs: ReferenceMaterial[]) => void;
@@ -59,6 +62,9 @@ const AdminView: React.FC<AdminViewProps> = ({
   onRemoveOsceStation,
   onClearDatabase,
   onClearResults,
+  onClearQuestions,
+  onClearOsce,
+  onClearMaterials,
   onAddTheme,
   onRemoveTheme,
   onUpdateReferences,
@@ -69,8 +75,12 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<'questions' | 'osce' | 'stats' | 'references' | 'materials' | 'themes'>('stats');
   
-  const [discFilter, setDiscFilter] = useState('');
+  // FILTROS DE VISUALIZAÇÃO E EXCLUSÃO
+  const [discFilter, setDiscFilter] = useState(''); // Filtro Questões
   const [themeFilter, setThemeFilter] = useState('');
+  
+  const [discFilterOsce, setDiscFilterOsce] = useState(''); // Filtro OSCE
+  const [discFilterMat, setDiscFilterMat] = useState(''); // Filtro Materiais
 
   const [selectedDiscId, setSelectedDiscId] = useState('');
   const [newTheme, setNewTheme] = useState('');
@@ -102,6 +112,17 @@ const AdminView: React.FC<AdminViewProps> = ({
       sessionStorage.setItem('fms_admin_auth', 'true');
     } else {
       alert('Credenciais incorretas!');
+    }
+  };
+
+  // SISTEMA DE ALERTA DE SENHA PARA O RESET GLOBAL
+  const handleGlobalReset = () => {
+    const pass = prompt("⚠️ AÇÃO DESTRUTIVA: Apagar absolutamente TODO o banco de dados?\n\nPara confirmar, digite a senha de administrador (fmst8):");
+    if (pass === 'fmst8') {
+      onClearDatabase();
+      alert("✅ Banco de dados completamente resetado.");
+    } else if (pass !== null) {
+      alert("❌ Senha incorreta. Ação cancelada.");
     }
   };
 
@@ -166,7 +187,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.readAsText(qFile);
   };
 
-  // LER JSON E EXIBIR PREVIEW COM SUPORTE PARA DICA
   const handleOsceReadPreview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!osceFile || !osceDiscipline || !osceTheme) return;
@@ -189,7 +209,7 @@ const AdminView: React.FC<AdminViewProps> = ({
           title: item.title || 'Estação sem título',
           scenario: item.scenario || '',
           task: item.task || '',
-          tip: item.tip || '', // <-- Lendo a dica aqui
+          tip: item.tip || '',
           checklist: Array.isArray(item.checklist) ? item.checklist : [],
           actionCloud: Array.isArray(item.actionCloud) ? item.actionCloud : [],
           correctOrderIndices: Array.isArray(item.correctOrderIndices) ? item.correctOrderIndices : []
@@ -214,7 +234,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         title: station.title || 'Estação sem Título',
         scenario: station.scenario || 'Sem cenário.',
         task: station.task || 'Sem comando.',
-        tip: station.tip || '', // <-- Salvando a dica no banco de dados aqui
+        tip: station.tip || '',
         checklist: station.checklist.filter(Boolean),
         actionCloud: station.actionCloud.filter(Boolean),
         correctOrderIndices: station.correctOrderIndices.filter((n: any) => n !== null && n !== undefined)
@@ -263,7 +283,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
         <div className="flex gap-2">
            <button onClick={onClearResults} className="bg-orange-100 text-orange-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-200 transition-all">Limpar Resultados</button>
-           <button onClick={onClearDatabase} className="bg-red-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 shadow-lg transition-all">Resetar Banco</button>
+           <button onClick={handleGlobalReset} className="bg-red-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 shadow-lg transition-all">Resetar Banco Total</button>
         </div>
       </div>
 
@@ -278,7 +298,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         ].map(tab => (
           <button 
             key={tab.id}
-            onClick={() => { setActiveTab(tab.id as any); setDiscFilter(''); setThemeFilter(''); }} 
+            onClick={() => { setActiveTab(tab.id as any); }} 
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all
               ${activeTab === tab.id ? 'bg-[#003366] text-white shadow-xl scale-105' : 'bg-white text-gray-400 border border-gray-100 hover:border-gray-300'}
             `}
@@ -372,8 +392,22 @@ const AdminView: React.FC<AdminViewProps> = ({
           </div>
           
           <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
-             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter">Gestão de Questões</h3>
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter">Gestão de Questões</h3>
+                  <button
+                    onClick={() => {
+                      const pass = prompt(`⚠️ AÇÃO DESTRUTIVA: Apagar as questões ${discFilter ? 'da disciplina selecionada' : 'de TODAS as disciplinas'}?\nDigite a senha (fmst8) para confirmar:`);
+                      if (pass === 'fmst8') {
+                        onClearQuestions(discFilter || undefined);
+                        alert("✅ Questões apagadas com sucesso.");
+                      } else if (pass !== null) alert("❌ Senha incorreta.");
+                    }}
+                    className="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-200 transition-all w-fit"
+                  >
+                    Apagar {discFilter ? 'da Disciplina' : 'Tudo'} 🗑️
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-2">
                     <select value={discFilter} onChange={e => { setDiscFilter(e.target.value); setThemeFilter(''); }} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]">
                       <option value="">Todas Disciplinas</option>
@@ -464,20 +498,48 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </>
               ) : (
                 <>
-                  <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Estações Cadastradas no Banco</h3>
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
+                     <div className="flex flex-col gap-2">
+                       <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter">Estações Cadastradas</h3>
+                       <button
+                         onClick={() => {
+                           const pass = prompt(`⚠️ AÇÃO DESTRUTIVA: Apagar OSCEs ${discFilterOsce ? 'da disciplina selecionada' : 'de TODAS as disciplinas'}?\nDigite a senha (fmst8) para confirmar:`);
+                           if (pass === 'fmst8') {
+                             onClearOsce(discFilterOsce || undefined);
+                             alert("✅ Estações apagadas com sucesso.");
+                           } else if (pass !== null) alert("❌ Senha incorreta.");
+                         }}
+                         className="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-200 transition-all w-fit"
+                       >
+                         Apagar {discFilterOsce ? 'da Disciplina' : 'Tudo'} 🗑️
+                       </button>
+                     </div>
+                     <div className="flex flex-wrap gap-2">
+                         <select value={discFilterOsce} onChange={e => setDiscFilterOsce(e.target.value)} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]">
+                           <option value="">Todas Disciplinas</option>
+                           {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                         </select>
+                     </div>
+                  </div>
+
                   <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                     {osceStations.map(station => (
+                     {osceStations.filter(s => !discFilterOsce || s.disciplineId === discFilterOsce).map(station => (
                        <div key={station.id} className="p-5 bg-gray-50 rounded-[1.5rem] border flex justify-between items-center hover:border-red-100 group transition-all">
                           <div>
                             <h4 className="font-bold text-[#003366] text-sm">{station.title}</h4>
-                            <p className="text-[9px] font-black uppercase text-[#D4A017] tracking-widest">{station.theme}</p>
+                            <div className="flex gap-2 mt-1">
+                              <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">{station.disciplineId}</p>
+                              <p className="text-[9px] font-black uppercase text-[#D4A017] tracking-widest">• {station.theme}</p>
+                            </div>
                           </div>
                           <button onClick={() => confirm("Excluir esta estação?") && onRemoveOsceStation(station.id)} className="text-red-300 hover:text-red-500">
                             <Trash2 size={18}/>
                           </button>
                        </div>
                      ))}
-                     {osceStations.length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma estação cadastrada no banco.</p>}
+                     {osceStations.filter(s => !discFilterOsce || s.disciplineId === discFilterOsce).length === 0 && (
+                       <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma estação encontrada.</p>
+                     )}
                   </div>
                 </>
               )}
@@ -569,9 +631,32 @@ const AdminView: React.FC<AdminViewProps> = ({
             </form>
           </div>
           <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
-             <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Gestão de Materiais</h3>
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter">Gestão de Materiais</h3>
+                  <button
+                    onClick={() => {
+                      const pass = prompt(`⚠️ AÇÃO DESTRUTIVA: Apagar os materiais ${discFilterMat ? 'da disciplina selecionada' : 'de TODAS as disciplinas'}?\nDigite a senha (fmst8) para confirmar:`);
+                      if (pass === 'fmst8') {
+                        onClearMaterials(discFilterMat || undefined);
+                        alert("✅ Materiais apagados com sucesso.");
+                      } else if (pass !== null) alert("❌ Senha incorreta.");
+                    }}
+                    className="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-200 transition-all w-fit"
+                  >
+                    Apagar {discFilterMat ? 'da Disciplina' : 'Tudo'} 🗑️
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <select value={discFilterMat} onChange={e => setDiscFilterMat(e.target.value)} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]">
+                      <option value="">Todas Disciplinas</option>
+                      {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                    </select>
+                </div>
+             </div>
+             
              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-                {summaries.map(s => (
+                {summaries.filter(s => !discFilterMat || s.disciplineId === discFilterMat).map(s => (
                   <div key={s.id} className="p-4 bg-gray-50 rounded-2xl border flex justify-between items-center group hover:border-red-100 transition-all">
                     <div className="flex items-center gap-3">
                        <span className="text-2xl">{s.isFolder ? '📂' : '📑'}</span>
@@ -585,7 +670,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </button>
                   </div>
                 ))}
-                {summaries.length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhum material publicado.</p>}
+                {summaries.filter(s => !discFilterMat || s.disciplineId === discFilterMat).length === 0 && (
+                  <p className="text-center py-10 text-gray-300 italic font-bold">Nenhum material encontrado.</p>
+                )}
              </div>
           </div>
         </div>
