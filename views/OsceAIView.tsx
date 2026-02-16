@@ -7,9 +7,24 @@ interface OsceAIViewProps {
   onBack: () => void;
 }
 
+// Função para transformar os asteriscos da IA num negrito bonito na tela
+const formatFeedback = (text: string) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={index} className="text-[#D4A017] font-black">{part.slice(2, -2)}</strong>;
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+};
+
 const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
   const [messages, setMessages] = useState<{role: 'user'|'patient'|'system', text: string}[]>([
-    { role: 'system', text: `🩺 SIMULAÇÃO INICIADA\n\nCenário Clínico: ${station.scenario}\n\nTarefa: ${station.task}\n\n(O paciente está aguardando você iniciar a conversa...)` }
+    { role: 'system', text: `🩺 SIMULAÇÃO INICIADA\n\nCenário: ${station.scenario}\n\nTarefa: ${station.task}\n\n(O paciente acabou de entrar no consultório e aguarda por si...)` }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,14 +49,13 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
       .map(m => `${m.role === 'user' ? 'Médico' : 'Paciente'}: ${m.text}`)
       .join('\n');
 
-    const context = `Você é um PACIENTE simulado para um estudante de medicina. 
-    SEU CENÁRIO (Nunca saia do personagem): "${station.scenario}".
-    REGRAS PARA VOCÊ:
-    1. Aja exatamente como o paciente descrito no cenário.
-    2. Seja natural, use palavras comuns de um leigo (não use termos técnicos a menos que seja um paciente da área da saúde).
-    3. Responda APENAS ao que o médico perguntou, de forma curta. Não conte toda a sua história de uma vez.
-    4. NÃO diga o seu diagnóstico. Deixe o aluno investigar.
-    5. Se o médico for rude, mostre desconforto.
+    const context = `Você é um PACIENTE simulado interagindo com um estudante de medicina. 
+    SEU CENÁRIO CLÍNICO BASE: "${station.scenario}".
+    
+    REGRAS DE INTERAÇÃO (CRÍTICO):
+    1. Incorpore a persona. Responda APENAS o que foi perguntado, de forma direta e coloquial.
+    2. NÃO entregue o seu diagnóstico de mão beijada. Deixe o aluno investigar.
+    3. SIMULAÇÃO DE EXAME FÍSICO E SINAIS VITAIS: Se o estudante informar que está realizando uma ação física (ex: "Vou aferir sua pressão", "Auscultando o pulmão", "Vou palpar seu pescoço", "*Faço o exame de reflexo*"), VOCÊ DEVE assumir o papel do simulador. Forneça IMEDIATAMENTE os achados clínicos compatíveis com o seu cenário (Ex: "A pressão está 150/90", ou "Você nota gânglios aumentados"). Se o cenário não tiver doença relacionada ao exame pedido, diga que está normal.
     
     Histórico da conversa até agora:
     ${chatHistory}
@@ -50,8 +64,6 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
     const prompt = `Médico (Aluno): ${userMsg}\nPaciente:`;
 
     const response = await getAIResponse(prompt, context);
-    
-    // Limpa possíveis prefixos como "Paciente:" que a IA possa colocar
     const cleanResponse = response.replace(/^Paciente:\s*/i, '').trim();
     
     setMessages(prev => [...prev, { role: 'patient', text: cleanResponse }]);
@@ -67,17 +79,28 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
       .map(m => `${m.role === 'user' ? 'Médico' : 'Paciente'}: ${m.text}`)
       .join('\n');
 
-    const context = `Você é um PRECEPTOR MÉDICO experiente avaliando o desempenho de um aluno em uma estação OSCE simulada por chat.
-    Cenário da estação: "${station.scenario}".
-    Checklist Base de ações/perguntas esperadas: ${station.checklist.join(', ')}.
+    const context = `Você é um PRECEPTOR MÉDICO experiente avaliando um aluno em uma estação OSCE simulada.
+    Cenário Original: "${station.scenario}".
+    Checklist Base de ações que ele devia ter cumprido: ${station.checklist.join(', ')}.
     `;
 
-    const prompt = `Abaixo está a transcrição exata da anamnese que o aluno fez com o Paciente Virtual:
+    const prompt = `Abaixo está a transcrição da anamnese/exame que o aluno fez com o Paciente Virtual:
     \n${chatHistory}\n
-    Gere uma avaliação direta e didática do desempenho do aluno. 
-    1. Diga quais pontos do checklist ele investigou bem.
-    2. Diga o que ele esqueceu ou falhou em perguntar.
-    3. Finalize dando uma nota de 0 a 10. (Formate o texto de forma fácil de ler, usando negritos se necessário).`;
+    
+    Gere uma avaliação final de forma clara, objetiva e muito didática. Ajude o aluno a melhorar.
+    Siga EXATAMENTE esta estrutura (use negrito usando asteriscos **texto** para destacar os termos mais cruciais):
+
+    🎯 PONTOS POSITIVOS:
+    (Diga o que ele investigou ou perguntou bem de acordo com o checklist)
+
+    ⚠️ O QUE FALTOU OU PODE MELHORAR:
+    (Liste os dados importantes do checklist que ele se esqueceu de investigar)
+
+    💡 ESSÊNCIA DO CASO (OBJETIVO DE APRENDIZAGEM):
+    (Explique a lição central que este caso ensina e qual deveria ser o raciocínio clínico do aluno perante estes sintomas)
+
+    📊 NOTA FINAL:
+    (Dê uma nota de 0 a 10 e diga uma breve frase de incentivo)`;
 
     const response = await getAIResponse(prompt, context);
     setFeedback(response);
@@ -86,7 +109,7 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 pb-32 h-screen flex flex-col">
-      <div className="flex justify-between items-center mb-6 border-b pb-4 shrink-0">
+      <div className="flex justify-between items-center mb-4 border-b pb-4 shrink-0">
         <button onClick={onBack} className="text-[#003366] font-black uppercase text-[10px] flex items-center gap-2 hover:text-[#D4A017]">
           <span>←</span> Encerrar
         </button>
@@ -96,6 +119,19 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
         </div>
       </div>
 
+      {/* GUIA DE INSTRUÇÕES RÁPIDAS PARA O ALUNO */}
+      {!isFinished && (
+        <div className="bg-blue-50/50 p-4 rounded-2xl mb-4 border border-blue-100 text-sm shrink-0">
+          <p className="font-bold text-[#003366] mb-1 flex items-center gap-2">
+            <span>💡</span> Como interagir:
+          </p>
+          <ul className="list-disc pl-5 space-y-1 text-gray-600 text-xs font-medium">
+            <li>Converse com o paciente para fazer a sua <b>anamnese</b> (ex: "Sente alguma dor?").</li>
+            <li>Para realizar o <b>exame físico</b> ou checar sinais vitais, comunique a sua ação ao paciente (ex: <i>"Vou aferir a sua pressão agora"</i> ou <i>"Vou palpar o seu pescoço"</i>). O simulador revelará o resultado!</li>
+          </ul>
+        </div>
+      )}
+
       {/* ÁREA DO CHAT */}
       <div className="flex-grow overflow-y-auto space-y-6 p-4 md:p-8 bg-white rounded-[2rem] shadow-inner mb-6 border border-gray-100 flex flex-col">
         {messages.map((msg, i) => (
@@ -103,7 +139,7 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
              <div className={`p-4 max-w-[85%] md:max-w-[70%] rounded-2xl whitespace-pre-wrap leading-relaxed ${
                msg.role === 'user' ? 'bg-[#003366] text-white rounded-br-sm shadow-md font-medium' :
                msg.role === 'system' ? 'bg-yellow-50 text-yellow-800 text-xs text-center border border-yellow-200 font-bold w-full' :
-               'bg-gray-100 text-[#003366] font-medium rounded-bl-sm border border-gray-200'
+               'bg-gray-50 text-[#003366] font-medium rounded-bl-sm border border-gray-200'
              }`}>
                {msg.text}
              </div>
@@ -112,7 +148,7 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
         
         {isLoading && !isFinished && (
           <div className="flex justify-start">
-            <div className="p-4 bg-gray-100 rounded-2xl rounded-bl-sm border border-gray-200 flex items-center gap-2">
+            <div className="p-4 bg-gray-50 rounded-2xl rounded-bl-sm border border-gray-200 flex items-center gap-2">
               <div className="w-2 h-2 bg-[#003366] rounded-full animate-bounce"></div>
               <div className="w-2 h-2 bg-[#003366] rounded-full animate-bounce delay-75"></div>
               <div className="w-2 h-2 bg-[#003366] rounded-full animate-bounce delay-150"></div>
@@ -123,11 +159,11 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
         {isFinished && feedback && (
            <div className="flex justify-center mt-8 animate-in fade-in duration-700">
              <div className="bg-[#003366] w-full p-8 rounded-[2rem] shadow-xl border-t-8 border-[#D4A017] text-white">
-                <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-3 mb-6">
+                <h3 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3 mb-8 border-b border-white/10 pb-4">
                   <span>🎓</span> Avaliação do Preceptor
                 </h3>
-                <div className="text-sm leading-relaxed opacity-90 whitespace-pre-wrap font-medium">
-                  {feedback}
+                <div className="text-sm leading-relaxed whitespace-pre-wrap font-medium space-y-4">
+                  {formatFeedback(feedback)}
                 </div>
              </div>
            </div>
@@ -136,33 +172,35 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
       </div>
 
       {/* ÁREA DE INPUT / BOTÕES */}
-      <div className="shrink-0">
+      <div className="shrink-0 bg-white p-2">
         {!isFinished ? (
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-2 relative">
               <input
                 type="text"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="Ex: 'O senhor está sentindo dor? Onde?'"
-                className="flex-grow p-4 bg-white rounded-2xl border-2 border-gray-200 focus:border-[#D4A017] outline-none transition-all font-medium text-[#003366]"
+                placeholder="Ex: 'Sente dores?' ou 'Vou medir a sua pressão'"
+                className="flex-grow p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 focus:border-[#D4A017] outline-none transition-all font-medium text-[#003366]"
                 disabled={isLoading}
               />
               <button 
                 onClick={handleSend} 
                 disabled={isLoading || !input.trim()} 
-                className="bg-[#D4A017] text-[#003366] font-black px-6 md:px-10 rounded-2xl hover:bg-[#003366] hover:text-white transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center text-xl"
+                className="bg-[#D4A017] text-[#003366] font-black px-6 md:px-8 rounded-2xl hover:bg-[#003366] hover:text-white transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center text-xl shadow-md"
               >
                 ➤
               </button>
             </div>
+            
+            {/* BOTÃO FINALIZAR DESTACADO */}
             <button 
               onClick={handleFinish} 
               disabled={isLoading || messages.length < 3}
-              className="w-full text-center py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-red-500 transition-colors disabled:opacity-30"
+              className="w-full bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-500 hover:text-white hover:border-red-500 py-4 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-sm"
             >
-              Finalizar Anamnese e Receber Avaliação
+              <span>🛑</span> Finalizar Atendimento e Avaliar
             </button>
           </div>
         ) : (
