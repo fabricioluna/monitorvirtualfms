@@ -53,6 +53,8 @@ const AdminView: React.FC<AdminViewProps> = ({
   onAddSummary,
   onRemoveSummary,
   onAddQuestions,
+  onUpdateQuestion, // <-- O que eu tinha esquecido
+  onAddOsceStations, // <-- O GRANDE CULPADO DO ERRO (Agora está aqui!)
   onRemoveQuestion,
   onRemoveOsceStation,
   onClearDatabase,
@@ -165,9 +167,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.readAsText(qFile);
   };
 
-  // ==========================================
   // LER JSON E EXIBIR PREVIEW
-  // ==========================================
   const handleOsceReadPreview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!osceFile || !osceDiscipline || !osceTheme) return;
@@ -203,14 +203,11 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.readAsText(osceFile);
   };
 
-  // ==========================================
-  // CONFIRMAR UPLOAD (AGORA BLINDADO CONTRA ERRO DO FIREBASE)
-  // ==========================================
+  // CONFIRMAR UPLOAD (BLINDADO CONTRA ERRO DO FIREBASE)
   const confirmOsceImport = () => {
     try {
       if (!oscePreview) return;
 
-      // Sanitização Extrema: Remove qualquer dado "undefined" ou "null" que faça o Firebase crashar
       const sanitizedStations = oscePreview.map(station => ({
         id: station.id,
         disciplineId: station.disciplineId,
@@ -218,16 +215,16 @@ const AdminView: React.FC<AdminViewProps> = ({
         title: station.title || 'Estação sem Título',
         scenario: station.scenario || 'Sem cenário.',
         task: station.task || 'Sem comando.',
-        // O filter(Boolean) garante que nenhum item da array seja vazio ou nulo
         checklist: station.checklist.filter(Boolean),
         actionCloud: station.actionCloud.filter(Boolean),
         correctOrderIndices: station.correctOrderIndices.filter((n: any) => n !== null && n !== undefined)
       }));
 
-      // JSON.parse + stringify converte os dados para o formato mais primitivo possível para o Firebase
       const firebaseSafePayload = JSON.parse(JSON.stringify(sanitizedStations));
 
+      // Agora a função onAddOsceStations existe de verdade!
       onAddOsceStations(firebaseSafePayload);
+      
       alert(`✅ Sucesso absoluto! ${firebaseSafePayload.length} estações OSCE foram enviadas para o banco em nuvem!`);
       setOscePreview(null);
       setOsceFile(null);
