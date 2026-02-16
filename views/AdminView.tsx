@@ -80,6 +80,8 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [themeFilter, setThemeFilter] = useState('');
   
   const [discFilterOsce, setDiscFilterOsce] = useState(''); // Filtro OSCE
+  const [themeFilterOsce, setThemeFilterOsce] = useState(''); // NOVO: Filtro Tema OSCE
+
   const [discFilterMat, setDiscFilterMat] = useState(''); // Filtro Materiais
 
   const [selectedDiscId, setSelectedDiscId] = useState('');
@@ -515,15 +517,34 @@ const AdminView: React.FC<AdminViewProps> = ({
                        </button>
                      </div>
                      <div className="flex flex-wrap gap-2">
-                         <select value={discFilterOsce} onChange={e => setDiscFilterOsce(e.target.value)} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]">
+                         <select 
+                           value={discFilterOsce} 
+                           onChange={e => { setDiscFilterOsce(e.target.value); setThemeFilterOsce(''); }} 
+                           className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]"
+                         >
                            <option value="">Todas Disciplinas</option>
                            {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                         </select>
+                         
+                         {/* NOVO FILTRO DE TEMA PARA O OSCE */}
+                         <select 
+                           value={themeFilterOsce} 
+                           onChange={e => setThemeFilterOsce(e.target.value)} 
+                           disabled={!discFilterOsce} 
+                           className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366] disabled:opacity-50 disabled:cursor-not-allowed"
+                         >
+                           <option value="">Todos os Temas</option>
+                           {discFilterOsce && disciplines.find(d => d.id === discFilterOsce)?.themes?.map(t => (
+                             <option key={t} value={t}>{t}</option>
+                           ))}
                          </select>
                      </div>
                   </div>
 
                   <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                     {osceStations.filter(s => !discFilterOsce || s.disciplineId === discFilterOsce).map(station => (
+                     {osceStations
+                       .filter(s => (!discFilterOsce || s.disciplineId === discFilterOsce) && (!themeFilterOsce || s.theme === themeFilterOsce))
+                       .map(station => (
                        <div key={station.id} className="p-5 bg-gray-50 rounded-[1.5rem] border flex justify-between items-center hover:border-red-100 group transition-all">
                           <div>
                             <h4 className="font-bold text-[#003366] text-sm">{station.title}</h4>
@@ -537,8 +558,8 @@ const AdminView: React.FC<AdminViewProps> = ({
                           </button>
                        </div>
                      ))}
-                     {osceStations.filter(s => !discFilterOsce || s.disciplineId === discFilterOsce).length === 0 && (
-                       <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma estação encontrada.</p>
+                     {osceStations.filter(s => (!discFilterOsce || s.disciplineId === discFilterOsce) && (!themeFilterOsce || s.theme === themeFilterOsce)).length === 0 && (
+                       <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma estação encontrada para este filtro.</p>
                      )}
                   </div>
                 </>
