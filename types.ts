@@ -45,7 +45,6 @@ export interface Summary {
   disciplineId: string;
   label: string;
   url: string;
-  // NOVO: Adicionado o tipo 'other'
   type: 'summary' | 'script' | 'other';
   isFolder?: boolean;
   date: string;
