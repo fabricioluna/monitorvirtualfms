@@ -23,7 +23,6 @@ interface AdminViewProps {
   onBack: () => void;
 }
 
-// LER CSV PARA MÚLTIPLA ESCOLHA
 const parseResilientCSV = (text: string, expectedColumns: number) => {
   const rawLines = text.split('\n');
   const mergedLines: string[] = [];
@@ -83,9 +82,11 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [qTheme, setQTheme] = useState('');
   const [qFile, setQFile] = useState<File | null>(null);
 
+  // ESTADOS DO NOVO PREVIEW DO OSCE
   const [osceDiscipline, setOsceDiscipline] = useState('');
   const [osceTheme, setOsceTheme] = useState('');
   const [osceFile, setOsceFile] = useState<File | null>(null);
+  const [oscePreview, setOscePreview] = useState<OsceStation[] | null>(null);
 
   const [matDisc, setMatDisc] = useState('');
   const [matType, setMatType] = useState<'summary' | 'script'>('summary');
@@ -164,10 +165,13 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.readAsText(qFile);
   };
 
-  // UPLOAD DO OSCE (JSON BLINDADO)
-  const handleOsceImport = (e: React.FormEvent) => {
+  // ==========================================
+  // LER JSON E EXIBIR PREVIEW
+  // ==========================================
+  const handleOsceReadPreview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!osceFile || !osceDiscipline || !osceTheme) return;
+    
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -175,7 +179,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         const parsedData = JSON.parse(text);
 
         if (!Array.isArray(parsedData)) {
-          alert('Erro de Estrutura: O arquivo JSON deve ser uma lista (Array) de estações começando com [ e terminando com ].');
+          alert('Erro de Estrutura: O arquivo JSON deve ser uma lista (Array) começando com [ e terminando com ].');
           return;
         }
         
@@ -191,14 +195,22 @@ const AdminView: React.FC<AdminViewProps> = ({
           correctOrderIndices: Array.isArray(item.correctOrderIndices) ? item.correctOrderIndices : []
         }));
         
-        onAddOsceStations(newStations);
-        alert(`${newStations.length} estações OSCE adicionadas com sucesso!`);
-        setOsceFile(null);
+        setOscePreview(newStations); // Manda para a Sala de Espera (Preview)
       } catch (err: any) { 
-        alert('Erro fatal ao ler JSON. O arquivo tem um erro de formatação (vírgula sobrando ou aspa faltando).\nDetalhes: ' + err.message); 
+        alert('Erro fatal ao ler JSON. O arquivo possui erro de formatação.\nDetalhes: ' + err.message); 
       }
     };
     reader.readAsText(osceFile);
+  };
+
+  // CONFIRMAR UPLOAD PARA O BANCO DE DADOS
+  const confirmOsceImport = () => {
+    if (oscePreview) {
+      onAddOsceStations(oscePreview);
+      alert(`${oscePreview.length} estações OSCE ativadas e enviadas para o banco! 🚀`);
+      setOscePreview(null);
+      setOsceFile(null);
+    }
   };
 
   if (!isAuthorized) {
@@ -373,46 +385,85 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      {/* VIEW: OSCE */}
+      {/* VIEW: OSCE COM PREVIEW */}
       {activeTab === 'osce' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-10 duration-500">
-           <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
-              <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Importar OSCE (JSON)</h3>
-              <form onSubmit={handleOsceImport} className="space-y-4">
-                <select value={osceDiscipline} onChange={e => setOsceDiscipline(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
-                  <option value="">Disciplina...</option>
-                  {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-                </select>
-                <select value={osceTheme} onChange={e => setOsceTheme(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
-                  <option value="">Eixo Temático...</option>
-                  {disciplines.find(d => d.id === osceDiscipline)?.themes?.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <input type="file" accept=".json" onChange={e => setOsceFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" />
-                <button type="submit" disabled={!osceFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">Subir JSON OSCE 🚀</button>
-              </form>
+           <div className="lg:col-span-4 space-y-6 h-fit">
+              {!oscePreview ? (
+                <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm">
+                  <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Importar OSCE (JSON)</h3>
+                  <form onSubmit={handleOsceReadPreview} className="space-y-4">
+                    <select value={osceDiscipline} onChange={e => setOsceDiscipline(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
+                      <option value="">Disciplina...</option>
+                      {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                    </select>
+                    <select value={osceTheme} onChange={e => setOsceTheme(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required>
+                      <option value="">Eixo Temático...</option>
+                      {disciplines.find(d => d.id === osceDiscipline)?.themes?.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <input type="file" accept=".json" onChange={e => setOsceFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" required />
+                    <button type="submit" disabled={!osceFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">
+                      Visualizar Arquivo 👁️
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="bg-[#003366] p-8 rounded-[2.5rem] border shadow-xl text-white animate-in zoom-in duration-300">
+                  <h3 className="text-xl font-black text-[#D4A017] mb-2 uppercase tracking-tighter">Pré-visualização</h3>
+                  <p className="text-xs mb-6 opacity-80 font-medium">Lemos <b>{oscePreview.length}</b> estações no arquivo. Confira a lista ao lado antes de enviar para o sistema.</p>
+                  <div className="space-y-3">
+                    <button onClick={confirmOsceImport} className="w-full bg-[#D4A017] text-[#003366] py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:scale-105 transition-transform">
+                      Confirmar e Salvar 🚀
+                    </button>
+                    <button onClick={() => setOscePreview(null)} className="w-full bg-white/10 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/20 transition-colors">
+                      Cancelar e Voltar
+                    </button>
+                  </div>
+                </div>
+              )}
            </div>
            
            <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
-              <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Estações Cadastradas</h3>
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                 {osceStations.map(station => (
-                   <div key={station.id} className="p-5 bg-gray-50 rounded-[1.5rem] border flex justify-between items-center hover:border-red-100 group transition-all">
-                      <div>
-                        <h4 className="font-bold text-[#003366] text-sm">{station.title}</h4>
-                        <p className="text-[9px] font-black uppercase text-[#D4A017] tracking-widest">{station.theme}</p>
-                      </div>
-                      <button onClick={() => confirm("Excluir esta estação?") && onRemoveOsceStation(station.id)} className="text-red-300 hover:text-red-500">
-                        <Trash2 size={18}/>
-                      </button>
-                   </div>
-                 ))}
-                 {osceStations.length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma estação cadastrada.</p>}
-              </div>
+              {oscePreview ? (
+                <>
+                  <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter border-b pb-4">Raio-X do Arquivo Lidos</h3>
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                     {oscePreview.map((station, idx) => (
+                       <div key={idx} className="p-5 bg-blue-50/40 rounded-[1.5rem] border border-blue-100">
+                          <h4 className="font-bold text-[#003366] text-sm mb-2">{station.title}</h4>
+                          <p className="text-xs text-gray-600 mb-4 italic leading-relaxed">"{station.scenario}"</p>
+                          <div className="flex gap-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                            <span className="bg-white px-3 py-1 rounded-md shadow-sm border">☁️ Nuvem: {station.actionCloud.length} itens</span>
+                            <span className="bg-white px-3 py-1 rounded-md shadow-sm border">✅ Checklist: {station.correctOrderIndices.length} acertos</span>
+                          </div>
+                       </div>
+                     ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter">Estações Cadastradas no Banco</h3>
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                     {osceStations.map(station => (
+                       <div key={station.id} className="p-5 bg-gray-50 rounded-[1.5rem] border flex justify-between items-center hover:border-red-100 group transition-all">
+                          <div>
+                            <h4 className="font-bold text-[#003366] text-sm">{station.title}</h4>
+                            <p className="text-[9px] font-black uppercase text-[#D4A017] tracking-widest">{station.theme}</p>
+                          </div>
+                          <button onClick={() => confirm("Excluir esta estação?") && onRemoveOsceStation(station.id)} className="text-red-300 hover:text-red-500">
+                            <Trash2 size={18}/>
+                          </button>
+                       </div>
+                     ))}
+                     {osceStations.length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma estação cadastrada no banco.</p>}
+                  </div>
+                </>
+              )}
            </div>
         </div>
       )}
 
-      {/* VIEW: REFERÊNCIAS */}
+      {/* VIEW: REFERÊNCIAS E MATERIAIS SEGUEM INTACTOS ABAIXO */}
       {activeTab === 'references' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-10 duration-500">
           <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
