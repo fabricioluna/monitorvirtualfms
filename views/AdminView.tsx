@@ -75,14 +75,13 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<'questions' | 'osce' | 'stats' | 'references' | 'materials' | 'themes'>('stats');
   
-  // FILTROS DE VISUALIZAÇÃO E EXCLUSÃO
-  const [discFilter, setDiscFilter] = useState(''); // Filtro Questões
+  const [discFilter, setDiscFilter] = useState(''); 
   const [themeFilter, setThemeFilter] = useState('');
   
-  const [discFilterOsce, setDiscFilterOsce] = useState(''); // Filtro OSCE
-  const [themeFilterOsce, setThemeFilterOsce] = useState(''); // NOVO: Filtro Tema OSCE
+  const [discFilterOsce, setDiscFilterOsce] = useState(''); 
+  const [themeFilterOsce, setThemeFilterOsce] = useState(''); 
 
-  const [discFilterMat, setDiscFilterMat] = useState(''); // Filtro Materiais
+  const [discFilterMat, setDiscFilterMat] = useState(''); 
 
   const [selectedDiscId, setSelectedDiscId] = useState('');
   const [newTheme, setNewTheme] = useState('');
@@ -117,7 +116,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
-  // SISTEMA DE ALERTA DE SENHA PARA O RESET GLOBAL
   const handleGlobalReset = () => {
     const pass = prompt("⚠️ AÇÃO DESTRUTIVA: Apagar absolutamente TODO o banco de dados?\n\nPara confirmar, digite a senha de administrador (fmst8):");
     if (pass === 'fmst8') {
@@ -210,6 +208,7 @@ const AdminView: React.FC<AdminViewProps> = ({
           theme: osceTheme,
           title: item.title || 'Estação sem título',
           scenario: item.scenario || '',
+          setting: item.setting || 'Consultório médico padrão. Disponível: maca, pia, estetoscópio, esfigmomanômetro, termômetro, oftalmoscópio, otoscópio, martelo de reflexos, lanterna e espátulas.',
           task: item.task || '',
           tip: item.tip || '',
           checklist: Array.isArray(item.checklist) ? item.checklist : [],
@@ -235,6 +234,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         theme: station.theme,
         title: station.title || 'Estação sem Título',
         scenario: station.scenario || 'Sem cenário.',
+        setting: station.setting || 'Consultório médico padrão. Disponível: maca, pia, estetoscópio, esfigmomanômetro, termômetro, oftalmoscópio, otoscópio, martelo de reflexos, lanterna e espátulas.',
         task: station.task || 'Sem comando.',
         tip: station.tip || '',
         checklist: station.checklist.filter(Boolean),
@@ -442,7 +442,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      {/* VIEW: OSCE COM PREVIEW */}
+      {/* VIEW: OSCE COM PREVIEW E NOVO SETTING */}
       {activeTab === 'osce' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-10 duration-500">
            <div className="lg:col-span-4 space-y-6 h-fit">
@@ -489,6 +489,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                        <div key={idx} className="p-5 bg-blue-50/40 rounded-[1.5rem] border border-blue-100">
                           <h4 className="font-bold text-[#003366] text-sm mb-2">{station.title}</h4>
                           <p className="text-xs text-gray-600 mb-2 italic leading-relaxed">"{station.scenario}"</p>
+                          <div className="text-[10px] text-blue-600 bg-white p-2 rounded border border-blue-200 mb-2 font-medium">📍 {station.setting}</div>
                           {station.tip && <p className="text-xs text-yellow-700 mb-4 bg-yellow-50 p-2 rounded">💡 {station.tip}</p>}
                           <div className="flex gap-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                             <span className="bg-white px-3 py-1 rounded-md shadow-sm border">☁️ Nuvem: {station.actionCloud.length} itens</span>
@@ -526,7 +527,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                            {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
                          </select>
                          
-                         {/* NOVO FILTRO DE TEMA PARA O OSCE */}
                          <select 
                            value={themeFilterOsce} 
                            onChange={e => setThemeFilterOsce(e.target.value)} 
