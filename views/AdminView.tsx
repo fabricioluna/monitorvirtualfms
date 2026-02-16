@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Question, OsceStation, SimulationInfo, Summary, QuizResult, ReferenceMaterial } from '../types';
-import { Trash2, Plus, BookOpen, Layers, BarChart3, FileText, ClipboardList, Stethoscope, Search } from 'lucide-react';
+import { Trash2, Plus, BookOpen, Layers, BarChart3, FileText, ClipboardList, Stethoscope } from 'lucide-react';
 
 interface AdminViewProps {
   questions: Question[];
@@ -31,11 +31,12 @@ const parseResilientCSV = (text: string, expectedColumns: number) => {
   const mergedLines: string[] = [];
   let currentLine = '';
 
-  for (const line of rawLines) {
-    if (!line.trim() && !currentLine) continue;
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i].replace(/\r/g, '').trim();
+    if (!line && !currentLine) continue;
     
-    // Cola a linha atual com a próxima, substituindo a quebra por um espaço
-    currentLine = currentLine ? currentLine + ' ' + line.trim() : line.trim();
+    // Cola a linha atual com a próxima, substituindo a quebra de linha por um espaço
+    currentLine = currentLine ? currentLine + ' ' + line : line;
     
     // Conta quantos pontos e vírgulas existem na linha colada
     const semicolonCount = (currentLine.match(/;/g) || []).length;
@@ -46,6 +47,12 @@ const parseResilientCSV = (text: string, expectedColumns: number) => {
       currentLine = '';
     }
   }
+  
+  // Caso o arquivo termine e ainda haja algo no buffer
+  if (currentLine) {
+    mergedLines.push(currentLine);
+  }
+  
   return mergedLines;
 };
 
@@ -73,7 +80,6 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [activeTab, setActiveTab] = useState<'questions' | 'osce' | 'stats' | 'references' | 'materials' | 'themes'>('stats');
   
   // Filtros de Lista
-  const [listFilter, setListFilter] = useState('');
   const [discFilter, setDiscFilter] = useState('');
   const [themeFilter, setThemeFilter] = useState('');
 
@@ -148,7 +154,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        // Usa o leitor blindado esperando 8 colunas (Pergunta + 4 Opções + Resposta + Explicacao + Pratica)
+        // Esperamos 8 colunas (Pergunta + 4 Opções + Resposta + Explicacao + Pratica)
         const lines = parseResilientCSV(text, 8); 
         
         const newQs: Question[] = lines.slice(1).map((line, idx) => {
@@ -159,7 +165,7 @@ const AdminView: React.FC<AdminViewProps> = ({
             theme: qTheme,
             q: parts[0]?.trim() || '',
             options: [parts[1]?.trim() || '', parts[2]?.trim() || '', parts[3]?.trim() || '', parts[4]?.trim() || ''],
-            answer: parseInt(parts[5]?.trim() || '0'),
+            answer: parseInt(parts[5]?.trim() || '0', 10),
             explanation: parts[6]?.trim() || '',
             tag: parts[7]?.trim() === 'true' ? 'Prática' : 'Teórica',
             isPractical: parts[7]?.trim() === 'true'
@@ -168,7 +174,9 @@ const AdminView: React.FC<AdminViewProps> = ({
         onAddQuestions(newQs);
         alert(`${newQs.length} questões adicionadas com sucesso!`);
         setQFile(null);
-      } catch (err) { alert('Erro inesperado ao ler o CSV de questões.'); }
+      } catch (err: any) { 
+        alert('Erro inesperado ao ler o CSV de questões: ' + err.message); 
+      }
     };
     reader.readAsText(qFile);
   };
@@ -180,11 +188,17 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        // Usa o leitor blindado esperando 6 colunas (Título, Cenário, Tarefa, Checklist, ActionCloud, OrdemCorreta)
+        // Esperamos 6 colunas (Título, Cenário, Tarefa, Checklist, ActionCloud, OrdemCorreta)
         const lines = parseResilientCSV(text, 6);
         
         const newStations: OsceStation[] = lines.slice(1).map((line, idx) => {
           const parts = line.split(';');
+          
+          // Proteção extra contra undefined para nunca mais gerar o erro "Cannot read properties of undefined (reading 'map')"
+          const safeChecklist = parts[3] || '';
+          const safeActionCloud = parts[4] || '';
+          const safeOrder = parts[5] || '';
+
           return {
             id: `osce_${Date.now()}_${idx}`,
             disciplineId: osceDiscipline,
@@ -192,15 +206,18 @@ const AdminView: React.FC<AdminViewProps> = ({
             title: parts[0]?.trim() || '',
             scenario: parts[1]?.trim() || '',
             task: parts[2]?.trim() || '',
-            checklist: parts[3]?.split('|').map(item => item.trim()) || [],
-            actionCloud: parts[4]?.split('|').map(item => item.trim()) || [],
-            correctOrderIndices: parts[5]?.split('|').map(item => parseInt(item.trim(), 10)) || []
+            checklist: safeChecklist.split('|').map(item => item.trim()).filter(Boolean),
+            actionCloud: safeActionCloud.split('|').map(item => item.trim()).filter(Boolean),
+            correctOrderIndices: safeOrder.split('|').map(item => parseInt(item.trim(), 10)).filter(n => !isNaN(n))
           };
         });
+        
         onAddOsceStations(newStations);
         alert(`${newStations.length} estações OSCE adicionadas com sucesso!`);
         setOsceFile(null);
-      } catch (err) { alert('Erro inesperado ao ler o formato do CSV de OSCE.'); }
+      } catch (err: any) { 
+        alert('Erro no formato do CSV de OSCE: ' + err.message); 
+      }
     };
     reader.readAsText(osceFile);
   };
