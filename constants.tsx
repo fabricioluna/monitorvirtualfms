@@ -91,9 +91,9 @@ export const SIMULATIONS: SimulationInfo[] = [
       'Comunicação de Más Notícias'
     ],
     references: [
-      { id: 'ref7', title: 'Exame Clínico', author: 'Porto & Porto', type: 'book' },
-      { id: 'ref8', title: 'Semiologia Médica', author: 'Bates', type: 'book' },
-      { id: 'ref9', title: 'Código de Ética Médica', author: 'CFM', type: 'article' }
+      { id: 'ref7', title: 'Exame Clínico', author: 'Porto & Porto', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/210702' },
+      { id: 'ref8', title: 'Bates: Propedêutica Médica', author: 'Bates', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/213400' },
+      { id: 'ref9', title: 'Código de Ética Médica', author: 'CFM', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/140114' }
     ]
   },
   {
