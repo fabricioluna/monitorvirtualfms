@@ -121,8 +121,10 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 pb-32 h-screen flex flex-col">
-      <div className="flex justify-between items-center mb-4 border-b pb-4 shrink-0">
+    /* AQUI ESTÁ O SEGREDO DA ALTURA: h-[88vh] em vez de ter pb-32 esmagando a tela */
+    <div className="max-w-5xl mx-auto px-4 pt-6 pb-2 h-[88vh] flex flex-col">
+      
+      <div className="flex justify-between items-center mb-3 border-b pb-3 shrink-0">
         <button onClick={onBack} className="text-[#003366] font-black uppercase text-[10px] flex items-center gap-2 hover:text-[#D4A017]">
           <span>←</span> Encerrar
         </button>
@@ -133,25 +135,26 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
       </div>
 
       {!isFinished && (
-        <div className="bg-blue-50/50 p-4 rounded-2xl mb-4 border border-blue-100 text-sm shrink-0">
+        <div className="bg-blue-50/50 p-3 rounded-xl mb-3 border border-blue-100 text-sm shrink-0">
           <p className="font-bold text-[#003366] mb-1 flex items-center gap-2">
             <span>💡</span> Dicas de Ouro para a Simulação:
           </p>
-          <ul className="list-disc pl-5 space-y-1 text-gray-600 text-xs font-medium">
+          <ul className="list-disc pl-5 space-y-1 text-gray-600 text-[11px] font-medium">
             <li><b>Aja como na vida real:</b> Apresente-se, seja educado. O paciente reage ao seu tom de voz.</li>
-            <li><b>Leia o "Ambiente":</b> Você só pode usar os instrumentos listados na caixa de cenário inicial. O sistema bloqueará o uso de recursos inexistentes!</li>
-            <li>Para o <b>exame físico</b>, informe o paciente do que está fazendo (ex: <i>"Com licença, vou auscultar seu pulmão agora"</i>).</li>
+            <li><b>Leia o "Ambiente":</b> Só use os instrumentos listados abaixo.</li>
+            <li>Para o exame físico, informe o paciente (ex: <i>"Vou auscultar seu pulmão agora"</i>).</li>
           </ul>
         </div>
       )}
 
-      <div className="flex-grow overflow-y-auto space-y-6 p-4 md:p-8 bg-white rounded-[2rem] shadow-inner mb-6 border border-gray-100 flex flex-col">
+      {/* A ÁREA DO CHAT AGORA ESTÁ MUITO MAIS ALTA E FLUIDA */}
+      <div className="flex-grow overflow-y-auto space-y-5 p-4 md:p-6 bg-white rounded-[1.5rem] shadow-inner mb-4 border border-gray-100 flex flex-col">
         {messages.map((msg, i) => (
            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : msg.role === 'system' ? 'justify-center' : 'justify-start'}`}>
              <div className={`whitespace-pre-wrap leading-relaxed ${
-               msg.role === 'user' ? 'p-4 max-w-[85%] md:max-w-[70%] rounded-2xl bg-[#003366] text-white rounded-br-sm shadow-md font-medium' :
-               msg.role === 'system' ? 'p-6 md:p-10 w-full rounded-[2rem] bg-yellow-50/80 text-yellow-900 text-sm md:text-base text-left border-2 border-yellow-200 shadow-sm font-medium mb-4' :
-               'p-4 max-w-[85%] md:max-w-[70%] rounded-2xl bg-gray-50 text-[#003366] font-medium rounded-bl-sm border border-gray-200 shadow-sm'
+               msg.role === 'user' ? 'p-4 max-w-[85%] md:max-w-[70%] rounded-2xl bg-[#003366] text-white rounded-br-sm shadow-md font-medium text-sm md:text-base' :
+               msg.role === 'system' ? 'p-5 md:p-8 w-full rounded-[1.5rem] bg-yellow-50/80 text-yellow-900 text-sm md:text-base text-left border-2 border-yellow-200 shadow-sm font-medium mb-2' :
+               'p-4 max-w-[85%] md:max-w-[70%] rounded-2xl bg-gray-50 text-[#003366] font-medium rounded-bl-sm border border-gray-200 shadow-sm text-sm md:text-base'
              }`}>
                {msg.text}
              </div>
@@ -169,21 +172,21 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
         )}
 
         {isLoading && isFinished && !feedback && (
-          <div className="flex justify-center mt-8 animate-in fade-in duration-500">
-            <div className="bg-white p-8 rounded-[2rem] shadow-lg border-2 border-dashed border-[#D4A017] flex flex-col items-center justify-center gap-4 text-[#003366] w-full md:w-3/4">
-              <div className="text-5xl animate-spin text-[#D4A017]">⏳</div>
+          <div className="flex justify-center mt-6 animate-in fade-in duration-500">
+            <div className="bg-white p-6 rounded-[1.5rem] shadow-lg border-2 border-dashed border-[#D4A017] flex flex-col items-center justify-center gap-4 text-[#003366] w-full md:w-3/4">
+              <div className="text-4xl animate-spin text-[#D4A017]">⏳</div>
               <div className="text-center">
-                <h4 className="font-black uppercase tracking-widest text-sm mb-2">Analisando sua Anamnese</h4>
-                <p className="text-xs font-medium text-gray-500">O Preceptor está formulando o relatório e calculando sua nota...</p>
+                <h4 className="font-black uppercase tracking-widest text-sm mb-1">Analisando sua Anamnese</h4>
+                <p className="text-xs font-medium text-gray-500">O Preceptor está escrevendo o seu relatório...</p>
               </div>
             </div>
           </div>
         )}
         
         {isFinished && feedback && (
-           <div className="flex justify-center mt-8 animate-in fade-in duration-700">
-             <div className="bg-[#003366] w-full p-8 md:p-12 rounded-[2rem] shadow-xl border-t-8 border-[#D4A017] text-white">
-                <h3 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3 mb-8 border-b border-white/10 pb-4">
+           <div className="flex justify-center mt-6 animate-in fade-in duration-700">
+             <div className="bg-[#003366] w-full p-6 md:p-10 rounded-[1.5rem] shadow-xl border-t-8 border-[#D4A017] text-white">
+                <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
                   <span>🎓</span> Relatório do Preceptor
                 </h3>
                 <div className="text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium space-y-4">
@@ -195,16 +198,16 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
         <div ref={chatEndRef} />
       </div>
 
-      <div className="shrink-0 bg-white p-2">
+      <div className="shrink-0 bg-white pt-1">
         {!isFinished ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             <div className="flex gap-2 relative">
               <input
                 type="text"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="Ex: 'Olá, sou o Dr. João. Qual a sua queixa?'"
+                placeholder="Escreva a sua ação ou pergunta aqui..."
                 className="flex-grow p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 focus:border-[#D4A017] outline-none transition-all font-medium text-[#003366]"
                 disabled={isLoading}
               />
@@ -220,7 +223,7 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
             <button 
               onClick={handleFinish} 
               disabled={isLoading || messages.length < 3}
-              className="w-full bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-500 hover:text-white hover:border-red-500 py-4 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-sm"
+              className="w-full bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-500 hover:text-white hover:border-red-500 py-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-sm"
             >
               <span>🛑</span> Finalizar Atendimento e Avaliar
             </button>
@@ -228,7 +231,7 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
         ) : (
           <button 
             onClick={onBack}
-            className="w-full bg-[#D4A017] text-[#003366] py-5 rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-xl hover:scale-105 transition-all"
+            className="w-full bg-[#D4A017] text-[#003366] py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-xl hover:scale-105 transition-all"
           >
             Voltar para o Menu
           </button>
