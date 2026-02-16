@@ -5,7 +5,7 @@ import DisciplineView from './views/DisciplineView.tsx';
 import QuizSetupView from './views/QuizSetupView.tsx';
 import QuizView from './views/QuizView.tsx';
 import AdminView from './views/AdminView.tsx';
-import SummariesListView from './views/SummariesListView.tsx';
+import SummariesListView from './views/SummariesListView.tsx'; // CENTRAL DE MATERIAIS
 import OsceView from './views/OsceView.tsx';
 import OsceSetupView from './views/OsceSetupView.tsx';
 import OsceAIView from './views/OsceAIView.tsx';
@@ -17,7 +17,7 @@ import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult, 
 import { INITIAL_QUESTIONS, SIMULATIONS } from './constants.tsx';
 import { db, ref, onValue, push, remove, set } from './firebase.ts';
 
-const APP_VERSION = "5.1.0 - IA Feedback UI";
+const APP_VERSION = "5.2.0 - Central de Materiais unificada";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
@@ -162,8 +162,15 @@ const App: React.FC = () => {
         )}
         {currentView === 'quiz' && <QuizView questions={quizFilteredQuestions} discipline={currentDiscipline!} onBack={() => setCurrentView('quiz-setup')} onSaveResult={(score, total) => db && push(ref(db, 'quizResults'), { score, total, date: new Date().toLocaleString(), discipline: currentDiscipline?.title })} />}
         
-        {currentView === 'summaries-list' && selectedDisciplineId && <SummariesListView disciplineId={selectedDisciplineId} disciplines={disciplines} summaries={summaries} onBack={() => setCurrentView('discipline')} mode="summary" />}
-        {currentView === 'scripts-list' && selectedDisciplineId && <SummariesListView disciplineId={selectedDisciplineId} disciplines={disciplines} summaries={summaries} onBack={() => setCurrentView('discipline')} mode="script" />}
+        {/* A NOVA CENTRAL DE MATERIAIS (Lida com tudo!) */}
+        {currentView === 'summaries-list' && selectedDisciplineId && (
+          <SummariesListView 
+            disciplineId={selectedDisciplineId} 
+            disciplines={disciplines} 
+            summaries={summaries} 
+            onBack={() => setCurrentView('discipline')} 
+          />
+        )}
         
         {currentView === 'osce-setup' && selectedDisciplineId && (
           <OsceSetupView 
