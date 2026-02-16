@@ -17,7 +17,7 @@ import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult, 
 import { INITIAL_QUESTIONS, SIMULATIONS } from './constants.tsx';
 import { db, ref, onValue, push, remove, set } from './firebase.ts';
 
-const APP_VERSION = "5.2.0 - Central de Materiais Unificada";
+const APP_VERSION = "5.3.0 - UX Central de Materiais";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
@@ -150,7 +150,7 @@ const App: React.FC = () => {
         )}
         
         {currentView === 'references-view' && currentDiscipline && <ReferencesView discipline={currentDiscipline} onBack={() => setCurrentView('discipline')} />}
-        {currentView === 'share-material' && currentDiscipline && <ShareMaterialView discipline={currentDiscipline} onShare={(s) => db && push(ref(db, 'summaries'), s)} onBack={() => setCurrentView('discipline')} />}
+        {currentView === 'share-material' && currentDiscipline && <ShareMaterialView discipline={currentDiscipline} onShare={(s) => db && push(ref(db, 'summaries'), s)} onBack={() => setCurrentView('summaries-list')} />}
         
         {currentView === 'quiz-setup' && selectedDisciplineId && (
           <QuizSetupView 
@@ -162,13 +162,14 @@ const App: React.FC = () => {
         )}
         {currentView === 'quiz' && <QuizView questions={quizFilteredQuestions} discipline={currentDiscipline!} onBack={() => setCurrentView('quiz-setup')} onSaveResult={(score, total) => db && push(ref(db, 'quizResults'), { score, total, date: new Date().toLocaleString(), discipline: currentDiscipline?.title })} />}
         
-        {/* A NOVA CENTRAL DE MATERIAIS */}
+        {/* CENTRAL DE MATERIAIS - AGORA RECEBE A FUNÇÃO onShareClick */}
         {currentView === 'summaries-list' && selectedDisciplineId && (
           <SummariesListView 
             disciplineId={selectedDisciplineId} 
             disciplines={disciplines} 
             summaries={summaries} 
-            onBack={() => setCurrentView('discipline')} 
+            onBack={() => setCurrentView('discipline')}
+            onShareClick={() => setCurrentView('share-material')} 
           />
         )}
         
