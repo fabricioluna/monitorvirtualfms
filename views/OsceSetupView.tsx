@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SimulationInfo, OsceStation } from '../types';
 
 interface OsceSetupViewProps {
@@ -9,14 +9,32 @@ interface OsceSetupViewProps {
 }
 
 const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStations, onStart, onBack }) => {
+  // null = Tela de escolher Tema. string = Tela de escolher Estação daquele tema.
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+
+  // Sorteia uma estação de TODO o banco da disciplina
+  const handleSurpriseAll = () => {
+    if (availableStations.length === 0) return;
+    const randomStation = availableStations[Math.floor(Math.random() * availableStations.length)];
+    onStart(randomStation);
+  };
+
+  // Sorteia uma estação apenas dentro do tema selecionado
+  const handleSurpriseTheme = (theme: string) => {
+    const filtered = availableStations.filter(s => s.theme === theme);
+    if (filtered.length === 0) return;
+    const randomStation = filtered[Math.floor(Math.random() * filtered.length)];
+    onStart(randomStation);
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 animate-in fade-in zoom-in duration-500">
       <button 
-        onClick={onBack} 
+        onClick={selectedTheme === null ? onBack : () => setSelectedTheme(null)} 
         className="group flex items-center text-[#003366] font-bold mb-8 hover:text-[#D4A017] transition-all"
       >
         <span className="mr-2 transition-transform group-hover:-translate-x-1">←</span> 
-        Voltar à Disciplina
+        {selectedTheme === null ? 'Voltar à Disciplina' : 'Voltar aos Eixos Temáticos'}
       </button>
       
       <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100">
@@ -33,30 +51,94 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
               <span className="text-4xl opacity-20 block mb-4">📁</span>
               <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Nenhuma estação clínica disponível no momento.</p>
            </div>
-        ) : (
+        ) : selectedTheme === null ? (
+          // PASSO 1: ESCOLHER O TEMA OU SURPRESA GERAL
           <div>
             <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 text-center">
-              Selecione o Cenário Clínico para Iniciar:
+              1º Passo: Selecione o Eixo de Treinamento
+            </label>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+              {/* Botão de Surpresa Geral */}
+              <button
+                onClick={handleSurpriseAll}
+                className="sm:col-span-2 p-6 bg-[#003366] hover:bg-[#D4A017] text-white hover:text-[#003366] rounded-[1.5rem] transition-all flex items-center justify-between group shadow-lg"
+              >
+                <div className="flex items-center gap-5 text-left">
+                  <div className="text-4xl group-hover:animate-spin">🎲</div>
+                  <div>
+                    <h3 className="text-lg font-black uppercase tracking-tight">Estação Surpresa (Geral)</h3>
+                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Sorteia entre todas as {availableStations.length} estações</p>
+                  </div>
+                </div>
+                <div className="font-black text-2xl opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all">→</div>
+              </button>
+
+              {/* Lista de Temas da Disciplina */}
+              {discipline.themes.map(theme => {
+                const count = availableStations.filter(s => s.theme === theme).length;
+                return (
+                  <button
+                    key={theme}
+                    disabled={count === 0}
+                    onClick={() => setSelectedTheme(theme)}
+                    className={`p-5 rounded-[1.5rem] border-2 text-left transition-all flex justify-between items-center group
+                      ${count > 0 
+                        ? 'bg-gray-50 border-transparent hover:border-[#D4A017] hover:bg-white hover:shadow-md cursor-pointer' 
+                        : 'bg-gray-50 border-transparent opacity-40 cursor-not-allowed'}
+                    `}
+                  >
+                    <div>
+                      <h3 className={`font-black text-sm uppercase tracking-tight pr-4 ${count > 0 ? 'text-[#003366] group-hover:text-[#D4A017]' : 'text-gray-400'}`}>
+                        {theme}
+                      </h3>
+                    </div>
+                    <span className={`text-[10px] font-black px-3 py-1 rounded-lg ${count > 0 ? 'bg-white text-[#003366] shadow-sm' : 'bg-gray-200 text-gray-400'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          // PASSO 2: ESCOLHER A ESTAÇÃO OU SURPRESA DO TEMA
+          <div className="animate-in slide-in-from-right-8 duration-300">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 text-center">
+              2º Passo: Selecione o Cenário de {selectedTheme}
             </label>
             
             <div className="grid grid-cols-1 gap-4">
-              {availableStations.map((station, index) => (
+              {/* Botão de Surpresa do Tema Específico */}
+              <button
+                onClick={() => handleSurpriseTheme(selectedTheme)}
+                className="p-5 bg-[#D4A017] text-[#003366] hover:bg-[#003366] hover:text-white rounded-[1.5rem] transition-all flex items-center justify-between group shadow-md"
+              >
+                <div className="flex items-center gap-4 text-left">
+                  <div className="text-3xl group-hover:animate-spin">🎲</div>
+                  <div>
+                    <h3 className="text-md font-black uppercase tracking-tight">Surpresa neste Eixo</h3>
+                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Sorteia uma estação aleatória de {selectedTheme}</p>
+                  </div>
+                </div>
+                <div className="font-black text-xl opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all">→</div>
+              </button>
+
+              {/* Lista das Estações Específicas do Tema */}
+              {availableStations.filter(s => s.theme === selectedTheme).map((station, index) => (
                 <button
                   key={station.id}
                   onClick={() => onStart(station)}
-                  className="p-6 bg-gray-50 hover:bg-white rounded-[1.5rem] border-2 border-transparent hover:border-[#D4A017] transition-all flex items-center justify-between group shadow-sm hover:shadow-lg"
+                  className="p-5 bg-gray-50 hover:bg-white rounded-[1.5rem] border-2 border-transparent hover:border-[#D4A017] transition-all flex items-center justify-between group shadow-sm hover:shadow-lg"
                 >
-                  <div className="flex items-center gap-6 text-left">
-                    <div className="w-12 h-12 rounded-full bg-[#003366] text-white flex items-center justify-center font-black text-sm group-hover:scale-110 transition-transform">
+                  <div className="flex items-center gap-5 text-left">
+                    <div className="w-10 h-10 rounded-full bg-[#003366] text-white flex items-center justify-center font-black text-sm group-hover:scale-110 transition-transform">
                       {index + 1}
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-[#003366] mb-1 group-hover:text-[#D4A017] transition-colors">
+                      <h3 className="text-md font-black text-[#003366] mb-1 group-hover:text-[#D4A017] transition-colors leading-tight pr-4">
                         {station.title}
                       </h3>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        {station.theme || 'Estação Prática'}
-                      </p>
                     </div>
                   </div>
                   <div className="text-[#D4A017] font-black text-xl opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all">
