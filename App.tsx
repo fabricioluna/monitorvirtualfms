@@ -8,7 +8,7 @@ import AdminView from './views/AdminView.tsx';
 import SummariesListView from './views/SummariesListView.tsx';
 import OsceView from './views/OsceView.tsx';
 import OsceSetupView from './views/OsceSetupView.tsx';
-import OsceAIView from './views/OsceAIView.tsx'; // IMPORTAÇÃO DA IA
+import OsceAIView from './views/OsceAIView.tsx';
 import CalculatorsView from './views/CalculatorsView.tsx';
 import CareerQuiz from './components/CareerQuiz.tsx';
 import ReferencesView from './views/ReferencesView.tsx';
@@ -17,7 +17,7 @@ import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult, 
 import { INITIAL_QUESTIONS, SIMULATIONS } from './constants.tsx';
 import { db, ref, onValue, push, remove, set } from './firebase.ts';
 
-const APP_VERSION = "5.0.0 - IA Virtual Patient";
+const APP_VERSION = "5.1.0 - IA Feedback UI";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
@@ -25,7 +25,7 @@ const App: React.FC = () => {
   const [quizFilteredQuestions, setQuizFilteredQuestions] = useState<Question[]>([]);
   
   const [currentOsceStation, setCurrentOsceStation] = useState<OsceStation | null>(null);
-  const [currentOsceAIStation, setCurrentOsceAIStation] = useState<OsceStation | null>(null); // ESTADO PARA IA
+  const [currentOsceAIStation, setCurrentOsceAIStation] = useState<OsceStation | null>(null);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
@@ -165,7 +165,6 @@ const App: React.FC = () => {
         {currentView === 'summaries-list' && selectedDisciplineId && <SummariesListView disciplineId={selectedDisciplineId} disciplines={disciplines} summaries={summaries} onBack={() => setCurrentView('discipline')} mode="summary" />}
         {currentView === 'scripts-list' && selectedDisciplineId && <SummariesListView disciplineId={selectedDisciplineId} disciplines={disciplines} summaries={summaries} onBack={() => setCurrentView('discipline')} mode="script" />}
         
-        {/* OSCE NORMAL */}
         {currentView === 'osce-setup' && selectedDisciplineId && (
           <OsceSetupView 
             discipline={disciplines.find(s => s.id === selectedDisciplineId)!}
@@ -176,7 +175,6 @@ const App: React.FC = () => {
         )}
         {currentView === 'osce-quiz' && currentOsceStation && <OsceView station={currentOsceStation} onBack={() => setCurrentView('osce-setup')} />}
 
-        {/* OSCE INTELIGENTE (IA) */}
         {currentView === 'osce-ai-setup' && selectedDisciplineId && (
           <OsceSetupView 
             discipline={disciplines.find(s => s.id === selectedDisciplineId)!}
@@ -248,8 +246,9 @@ const App: React.FC = () => {
         )}
       </div>
 
-      <footer className="bg-white border-t py-6 flex flex-col items-center gap-2">
+      <footer className="bg-white border-t py-8 flex flex-col items-center gap-2">
         <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">© 2026 Medicina do Sertão</div>
+        <div className="text-[#D4A017] text-[11px] font-black uppercase tracking-[0.2em] mb-1">Desenvolvido por Fabrício Luna</div>
         <div className="text-[8px] text-gray-300 font-black uppercase tracking-tighter">Build {APP_VERSION}</div>
       </footer>
     </div>
