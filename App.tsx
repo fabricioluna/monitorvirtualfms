@@ -16,7 +16,7 @@ import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult, 
 import { INITIAL_QUESTIONS, SIMULATIONS } from './constants.tsx';
 import { db, ref, onValue, push, remove, set } from './firebase.ts';
 
-const APP_VERSION = "4.4.0 - Preview & Safe Sync";
+const APP_VERSION = "4.5.0 - Secure Deletion & Filters";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
@@ -43,7 +43,6 @@ const App: React.FC = () => {
       setIsOnline(snap.val() === true);
     });
 
-    // Sync Seguro de Disciplinas
     onValue(ref(db, 'discipline_config'), (snap) => {
       const config = snap.val();
       if (config) {
@@ -61,7 +60,6 @@ const App: React.FC = () => {
       }
     });
 
-    // COLEÇÕES SEGURAS: O filtro (k => data[k]) impede que dados 'null' do Firebase quebrem o app
     const collections = [
       { path: 'questions', setter: (data: any) => setQuestions([...INITIAL_QUESTIONS, ...Object.keys(data).filter(k => data[k]).map(k => ({ ...data[k], firebaseId: k }))]) },
       { path: 'summaries', setter: (data: any) => setSummaries(Object.keys(data).filter(k => data[k]).map(k => ({ ...data[k], firebaseId: k }))) },
@@ -169,6 +167,7 @@ const App: React.FC = () => {
         )}
         {currentView === 'osce-quiz' && currentOsceStation && <OsceView station={currentOsceStation} onBack={() => setCurrentView('osce-setup')} />}
         {currentView === 'calculators' && <CalculatorsView onBack={() => setCurrentView('home')} />}
+        
         {currentView === 'admin' && (
           <AdminView 
             questions={questions}
@@ -183,8 +182,47 @@ const App: React.FC = () => {
             onAddOsceStations={(os) => db && os.forEach(o => push(ref(db, 'osce'), o))}
             onRemoveQuestion={(id) => { const q = questions.find(item => item.id === id); if (db && q?.firebaseId) remove(ref(db, `questions/${q.firebaseId}`)); }}
             onRemoveOsceStation={(id) => { const o = osceStations.find(item => item.id === id); if (db && o?.firebaseId) remove(ref(db, `osce/${o.firebaseId}`)); }}
-            onClearDatabase={() => db && confirm("Apagar toda a configuração personalizada?") && (remove(ref(db, 'questions')), remove(ref(db, 'summaries')), remove(ref(db, 'osce')), remove(ref(db, 'discipline_config')))}
+            
+            // FUNÇÕES GLOBAIS DE APAGAR O BANCO DE DADOS
+            onClearDatabase={() => {
+              if (db) {
+                remove(ref(db, 'questions'));
+                remove(ref(db, 'summaries'));
+                remove(ref(db, 'osce'));
+                remove(ref(db, 'discipline_config'));
+              }
+            }}
             onClearResults={() => db && remove(ref(db, 'quizResults'))}
+            
+            // NOVAS FUNÇÕES PARA APAGAR DADOS ESPECÍFICOS POR DISCIPLINA
+            onClearQuestions={(discId) => {
+              if (db) {
+                if (discId) {
+                  questions.filter(q => q.disciplineId === discId).forEach(q => q.firebaseId && remove(ref(db, `questions/${q.firebaseId}`)));
+                } else {
+                  remove(ref(db, 'questions'));
+                }
+              }
+            }}
+            onClearOsce={(discId) => {
+              if (db) {
+                if (discId) {
+                  osceStations.filter(o => o.disciplineId === discId).forEach(o => o.firebaseId && remove(ref(db, `osce/${o.firebaseId}`)));
+                } else {
+                  remove(ref(db, 'osce'));
+                }
+              }
+            }}
+            onClearMaterials={(discId) => {
+              if (db) {
+                if (discId) {
+                  summaries.filter(s => s.disciplineId === discId).forEach(s => s.firebaseId && remove(ref(db, `summaries/${s.firebaseId}`)));
+                } else {
+                  remove(ref(db, 'summaries'));
+                }
+              }
+            }}
+
             onAddTheme={handleAddTheme}
             onRemoveTheme={handleRemoveTheme}
             onUpdateReferences={handleUpdateReferences}
