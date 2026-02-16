@@ -53,8 +53,8 @@ const AdminView: React.FC<AdminViewProps> = ({
   onAddSummary,
   onRemoveSummary,
   onAddQuestions,
-  onUpdateQuestion, // <-- O que eu tinha esquecido
-  onAddOsceStations, // <-- O GRANDE CULPADO DO ERRO (Agora está aqui!)
+  onUpdateQuestion, 
+  onAddOsceStations, 
   onRemoveQuestion,
   onRemoveOsceStation,
   onClearDatabase,
@@ -84,7 +84,6 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [qTheme, setQTheme] = useState('');
   const [qFile, setQFile] = useState<File | null>(null);
 
-  // ESTADOS DO PREVIEW DO OSCE
   const [osceDiscipline, setOsceDiscipline] = useState('');
   const [osceTheme, setOsceTheme] = useState('');
   const [osceFile, setOsceFile] = useState<File | null>(null);
@@ -167,7 +166,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.readAsText(qFile);
   };
 
-  // LER JSON E EXIBIR PREVIEW
+  // LER JSON E EXIBIR PREVIEW COM SUPORTE PARA DICA
   const handleOsceReadPreview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!osceFile || !osceDiscipline || !osceTheme) return;
@@ -190,6 +189,7 @@ const AdminView: React.FC<AdminViewProps> = ({
           title: item.title || 'Estação sem título',
           scenario: item.scenario || '',
           task: item.task || '',
+          tip: item.tip || '', // <-- Lendo a dica aqui
           checklist: Array.isArray(item.checklist) ? item.checklist : [],
           actionCloud: Array.isArray(item.actionCloud) ? item.actionCloud : [],
           correctOrderIndices: Array.isArray(item.correctOrderIndices) ? item.correctOrderIndices : []
@@ -203,7 +203,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.readAsText(osceFile);
   };
 
-  // CONFIRMAR UPLOAD (BLINDADO CONTRA ERRO DO FIREBASE)
   const confirmOsceImport = () => {
     try {
       if (!oscePreview) return;
@@ -215,6 +214,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         title: station.title || 'Estação sem Título',
         scenario: station.scenario || 'Sem cenário.',
         task: station.task || 'Sem comando.',
+        tip: station.tip || '', // <-- Salvando a dica no banco de dados aqui
         checklist: station.checklist.filter(Boolean),
         actionCloud: station.actionCloud.filter(Boolean),
         correctOrderIndices: station.correctOrderIndices.filter((n: any) => n !== null && n !== undefined)
@@ -222,7 +222,6 @@ const AdminView: React.FC<AdminViewProps> = ({
 
       const firebaseSafePayload = JSON.parse(JSON.stringify(sanitizedStations));
 
-      // Agora a função onAddOsceStations existe de verdade!
       onAddOsceStations(firebaseSafePayload);
       
       alert(`✅ Sucesso absoluto! ${firebaseSafePayload.length} estações OSCE foram enviadas para o banco em nuvem!`);
@@ -453,7 +452,8 @@ const AdminView: React.FC<AdminViewProps> = ({
                      {oscePreview.map((station, idx) => (
                        <div key={idx} className="p-5 bg-blue-50/40 rounded-[1.5rem] border border-blue-100">
                           <h4 className="font-bold text-[#003366] text-sm mb-2">{station.title}</h4>
-                          <p className="text-xs text-gray-600 mb-4 italic leading-relaxed">"{station.scenario}"</p>
+                          <p className="text-xs text-gray-600 mb-2 italic leading-relaxed">"{station.scenario}"</p>
+                          {station.tip && <p className="text-xs text-yellow-700 mb-4 bg-yellow-50 p-2 rounded">💡 {station.tip}</p>}
                           <div className="flex gap-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                             <span className="bg-white px-3 py-1 rounded-md shadow-sm border">☁️ Nuvem: {station.actionCloud.length} itens</span>
                             <span className="bg-white px-3 py-1 rounded-md shadow-sm border">✅ Checklist: {station.correctOrderIndices.length} acertos</span>
