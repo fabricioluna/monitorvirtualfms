@@ -62,7 +62,6 @@ const DisciplineView: React.FC<DisciplineViewProps> = ({ disciplineId, disciplin
           <p className="text-xs text-gray-500 font-medium">Treine o passo a passo de exames clínicos de forma gamificada.</p>
         </button>
 
-        {/* NOVO BOTÃO: PACIENTE VIRTUAL (APENAS PARA HM2 POR ENQUANTO) */}
         {disciplineId === 'hm2' && (
           <button onClick={() => onSelectOption('osce-ai-setup')} className="bg-gradient-to-br from-[#003366] to-[#001f3f] text-white p-6 md:p-8 rounded-[2rem] text-left hover:scale-105 transition-all shadow-xl group relative overflow-hidden md:col-span-2">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
@@ -77,11 +76,11 @@ const DisciplineView: React.FC<DisciplineViewProps> = ({ disciplineId, disciplin
 
         <button onClick={() => onSelectOption('summaries-list')} className="bg-white p-6 md:p-8 rounded-[2rem] text-left hover:shadow-xl transition-all group border-2 border-transparent hover:border-[#D4A017]">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-50 text-[#003366] rounded-xl flex items-center justify-center text-2xl group-hover:bg-[#003366] group-hover:text-white transition-colors">📑</div>
+            <div className="w-12 h-12 bg-blue-50 text-[#003366] rounded-xl flex items-center justify-center text-2xl group-hover:bg-[#003366] group-hover:text-white transition-colors">📂</div>
             <div className="text-gray-300 group-hover:text-[#D4A017] transition-colors">→</div>
           </div>
-          <h3 className="text-xl font-black text-[#003366] mb-2 uppercase tracking-tight">Materiais e Resumos</h3>
-          <p className="text-xs text-gray-500 font-medium">Acesse a pasta de resumos coletivos da turma.</p>
+          <h3 className="text-xl font-black text-[#003366] mb-2 uppercase tracking-tight">Central de Materiais</h3>
+          <p className="text-xs text-gray-500 font-medium">Acesse resumos, roteiros de aulas práticas e materiais extras da turma.</p>
         </button>
 
         <button onClick={() => onSelectOption('references-view')} className="bg-white p-6 md:p-8 rounded-[2rem] text-left hover:shadow-xl transition-all group border-2 border-transparent hover:border-[#D4A017]">
