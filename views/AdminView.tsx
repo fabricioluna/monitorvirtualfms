@@ -82,7 +82,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [qTheme, setQTheme] = useState('');
   const [qFile, setQFile] = useState<File | null>(null);
 
-  // ESTADOS DO NOVO PREVIEW DO OSCE
+  // ESTADOS DO PREVIEW DO OSCE
   const [osceDiscipline, setOsceDiscipline] = useState('');
   const [osceTheme, setOsceTheme] = useState('');
   const [osceFile, setOsceFile] = useState<File | null>(null);
@@ -195,7 +195,7 @@ const AdminView: React.FC<AdminViewProps> = ({
           correctOrderIndices: Array.isArray(item.correctOrderIndices) ? item.correctOrderIndices : []
         }));
         
-        setOscePreview(newStations); // Manda para a Sala de Espera (Preview)
+        setOscePreview(newStations);
       } catch (err: any) { 
         alert('Erro fatal ao ler JSON. O arquivo possui erro de formatação.\nDetalhes: ' + err.message); 
       }
@@ -203,13 +203,38 @@ const AdminView: React.FC<AdminViewProps> = ({
     reader.readAsText(osceFile);
   };
 
-  // CONFIRMAR UPLOAD PARA O BANCO DE DADOS
+  // ==========================================
+  // CONFIRMAR UPLOAD (AGORA BLINDADO CONTRA ERRO DO FIREBASE)
+  // ==========================================
   const confirmOsceImport = () => {
-    if (oscePreview) {
-      onAddOsceStations(oscePreview);
-      alert(`${oscePreview.length} estações OSCE ativadas e enviadas para o banco! 🚀`);
+    try {
+      if (!oscePreview) return;
+
+      // Sanitização Extrema: Remove qualquer dado "undefined" ou "null" que faça o Firebase crashar
+      const sanitizedStations = oscePreview.map(station => ({
+        id: station.id,
+        disciplineId: station.disciplineId,
+        theme: station.theme,
+        title: station.title || 'Estação sem Título',
+        scenario: station.scenario || 'Sem cenário.',
+        task: station.task || 'Sem comando.',
+        // O filter(Boolean) garante que nenhum item da array seja vazio ou nulo
+        checklist: station.checklist.filter(Boolean),
+        actionCloud: station.actionCloud.filter(Boolean),
+        correctOrderIndices: station.correctOrderIndices.filter((n: any) => n !== null && n !== undefined)
+      }));
+
+      // JSON.parse + stringify converte os dados para o formato mais primitivo possível para o Firebase
+      const firebaseSafePayload = JSON.parse(JSON.stringify(sanitizedStations));
+
+      onAddOsceStations(firebaseSafePayload);
+      alert(`✅ Sucesso absoluto! ${firebaseSafePayload.length} estações OSCE foram enviadas para o banco em nuvem!`);
       setOscePreview(null);
       setOsceFile(null);
+
+    } catch (error: any) {
+      alert("⚠️ Erro bloqueado: O Firebase recusou o salvamento. Detalhes: " + error.message);
+      console.error("Firebase Guard Error:", error);
     }
   };
 
@@ -426,7 +451,7 @@ const AdminView: React.FC<AdminViewProps> = ({
            <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border shadow-sm">
               {oscePreview ? (
                 <>
-                  <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter border-b pb-4">Raio-X do Arquivo Lidos</h3>
+                  <h3 className="text-xl font-black text-[#003366] mb-6 uppercase tracking-tighter border-b pb-4">Raio-X do Arquivo Lido</h3>
                   <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                      {oscePreview.map((station, idx) => (
                        <div key={idx} className="p-5 bg-blue-50/40 rounded-[1.5rem] border border-blue-100">
@@ -463,7 +488,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      {/* VIEW: REFERÊNCIAS E MATERIAIS SEGUEM INTACTOS ABAIXO */}
+      {/* VIEW: REFERÊNCIAS */}
       {activeTab === 'references' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-10 duration-500">
           <div className="lg:col-span-4 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
