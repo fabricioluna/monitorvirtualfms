@@ -22,8 +22,11 @@ const formatFeedback = (text: string) => {
 };
 
 const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
+  const defaultSetting = 'Consultório médico padrão. Disponível: maca, pia, estetoscópio, esfigmomanômetro, termômetro, oftalmoscópio, otoscópio, martelo de reflexos, lanterna, luvas e espátulas.';
+  const currentSetting = station.setting || defaultSetting;
+
   const [messages, setMessages] = useState<{role: 'user'|'patient'|'system', text: string}[]>([
-    { role: 'system', text: `🩺 SIMULAÇÃO INICIADA\n\nCenário: ${station.scenario}\n\nTarefa: ${station.task}\n\n(O paciente acabou de entrar no consultório e aguarda por si...)` }
+    { role: 'system', text: `🩺 SIMULAÇÃO INICIADA\n\n📍 AMBIENTE: ${currentSetting}\n\n📝 CENÁRIO: ${station.scenario}\n\n🎯 TAREFA: ${station.task}\n\n(O paciente aguarda a sua abordagem...)` }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +37,7 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, feedback]);
+  }, [messages, feedback, isLoading]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading || isFinished) return;
@@ -48,24 +51,26 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
       .map(m => `${m.role === 'user' ? 'Médico' : 'Paciente'}: ${m.text}`)
       .join('\n');
 
-    // PROMPT DO PACIENTE - AGORA COM EMOÇÃO E REAÇÕES HUMANAS
-    const context = `Você é um PACIENTE simulado interagindo com um estudante de medicina em um exame clínico. 
-    SEU CENÁRIO CLÍNICO BASE: "${station.scenario}".
+    const context = `Você é um PACIENTE simulado interagindo com um estudante de medicina em um exame OSCE. 
+    SEU CENÁRIO CLÍNICO: "${station.scenario}".
+    AMBIENTE FÍSICO DA SALA: "${currentSetting}".
     
     REGRAS DE INTERAÇÃO (CRÍTICO):
     1. Incorpore a persona. Responda APENAS o que foi perguntado, de forma direta e coloquial.
     2. NÃO entregue o seu diagnóstico de mão beijada.
-    3. DINÂMICA EMOCIONAL: Reaja ao tom do médico. Se ele for educado e empático, mostre-se aliviado e colaborativo. Se ele for ríspido, frio ou pular direto para o exame físico sem se apresentar, demonstre ansiedade, confusão ou desconforto ("Nossa doutor, já vai me examinar sem nem saber meu nome?").
-    4. SIMULAÇÃO FÍSICA: Se o estudante informar uma ação (ex: "Vou aferir sua pressão", "Palpando o abdome"), forneça IMEDIATAMENTE os achados clínicos compatíveis com sua doença. Se ele examinar algo não relacionado à sua queixa, diga que está normal e sem dor.
+    3. DINÂMICA EMOCIONAL: Reaja ao tom do médico. (Se ele for educado -> alivio/colaboração; se ríspido/sem se apresentar -> desconforto/ansiedade).
+    4. SIMULAÇÃO FÍSICA E LIMITAÇÃO DE RECURSOS: 
+       - Se o estudante realizar uma ação física de consultório (ex: "Aferir pressão", "Auscultar pulmão", "Palpar pescoço"), forneça IMEDIATAMENTE os achados clínicos compatíveis com a sua doença.
+       - SE O ESTUDANTE PEDIR EXAMES LABORATORIAIS OU DE IMAGEM (Ex: Raio-X, Tomografia, Hemograma, Ultrassom) NA SALA: Incorpore o narrador da simulação e diga explicitamente: "[SISTEMA]: Você está na sala de exame clínico. Este recurso não está disponível aqui no momento. Foco na anamnese e no exame físico."
     
     Histórico da conversa até agora:
     ${chatHistory}
     `;
 
-    const prompt = `Médico (Aluno): ${userMsg}\nPaciente:`;
+    const prompt = `Médico (Aluno): ${userMsg}\nPaciente/Sistema:`;
 
     const response = await getAIResponse(prompt, context);
-    const cleanResponse = response.replace(/^Paciente:\s*/i, '').trim();
+    const cleanResponse = response.replace(/^Paciente:\s*/i, '').replace(/^Paciente\/Sistema:\s*/i, '').trim();
     
     setMessages(prev => [...prev, { role: 'patient', text: cleanResponse }]);
     setIsLoading(false);
@@ -80,32 +85,32 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
       .map(m => `${m.role === 'user' ? 'Médico' : 'Paciente'}: ${m.text}`)
       .join('\n');
 
-    // PROMPT DO PRECEPTOR - AVALIANDO INTENÇÃO E SOFT SKILLS
     const context = `Você é um PRECEPTOR MÉDICO SÊNIOR avaliando um aluno em uma estação OSCE simulada.
     Cenário Original: "${station.scenario}".
     Checklist Oficial: ${station.checklist.join(', ')}.
+    Ambiente Disponível: "${currentSetting}".
     `;
 
     const prompt = `Abaixo está a transcrição da anamnese/exame que o aluno fez com o Paciente Virtual:
     \n${chatHistory}\n
     
-    Gere uma avaliação final madura, justa e muito didática. Não seja robótico procurando as palavras exatas do checklist, mas sim avalie se o aluno cumpriu o *objetivo clínico* de cada etapa.
+    Gere uma avaliação final madura, justa e muito didática. Foque em se o aluno cumpriu o *objetivo clínico* de cada etapa do checklist.
     Siga EXATAMENTE esta estrutura (use negrito **texto** para destacar os termos cruciais):
 
     🤝 POSTURA E COMUNICAÇÃO (SOFT SKILLS):
-    (Avalie se o aluno se apresentou, se foi empático, se explicou o que ia fazer antes de "tocar" no paciente, e como foi o fluxo da sua entrevista.)
+    (Avalie se o aluno se apresentou, foi empático e soube conduzir a consulta.)
 
-    🎯 ACERTOS CLÍNICOS:
-    (Diga quais intenções clínicas do checklist ele investigou bem, mesmo que tenha usado outras palavras.)
+    🎯 ACERTOS CLÍNICOS E USO DO AMBIENTE:
+    (Diga quais itens do checklist ele investigou bem e se usou bem os materiais disponíveis no consultório.)
 
     ⚠️ O QUE FALTOU OU PODE MELHORAR:
-    (Aponte falhas graves do checklist ou perguntas fundamentais que ele esqueceu.)
+    (Aponte falhas graves do checklist ou condutas irreais/precipitadas para o ambiente do exame.)
 
     💡 ESSÊNCIA DO CASO:
     (Explique a lição central que este caso ensina e o raciocínio clínico esperado.)
 
     📊 NOTA FINAL (0 a 10):
-    (Dê a nota baseada no desempenho técnico e humano)`;
+    (Dê a nota baseada no desempenho técnico e atitude)`;
 
     const response = await getAIResponse(prompt, context);
     setFeedback(response);
@@ -127,12 +132,12 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
       {!isFinished && (
         <div className="bg-blue-50/50 p-4 rounded-2xl mb-4 border border-blue-100 text-sm shrink-0">
           <p className="font-bold text-[#003366] mb-1 flex items-center gap-2">
-            <span>💡</span> Como interagir (O Paciente reage à sua postura!):
+            <span>💡</span> Dicas de Ouro para a Simulação:
           </p>
           <ul className="list-disc pl-5 space-y-1 text-gray-600 text-xs font-medium">
-            <li>Lembre-se das <b>Soft Skills</b>: Apresente-se e trate-o como uma pessoa real.</li>
-            <li>Converse naturalmente para fazer a sua <b>anamnese</b>.</li>
-            <li>Para realizar o <b>exame físico</b> ou checar sinais vitais, comunique a sua ação (ex: <i>"Vou palpar o seu pescoço agora, com licença"</i>) e a IA revelará o resultado.</li>
+            <li><b>Aja como na vida real:</b> Apresente-se, seja educado. O paciente reage ao seu tom de voz.</li>
+            <li><b>Leia o "Ambiente":</b> Você só pode usar os instrumentos que estão listados na mensagem inicial do sistema (caixa amarela). Se pedir uma Tomografia numa sala de UBS, o sistema não vai aceitar!</li>
+            <li>Para o <b>exame físico</b>, informe o paciente do que está fazendo (ex: <i>"Com licença, vou auscultar seu pulmão agora"</i>).</li>
           </ul>
         </div>
       )}
@@ -142,7 +147,7 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : msg.role === 'system' ? 'justify-center' : 'justify-start'}`}>
              <div className={`p-4 max-w-[85%] md:max-w-[70%] rounded-2xl whitespace-pre-wrap leading-relaxed ${
                msg.role === 'user' ? 'bg-[#003366] text-white rounded-br-sm shadow-md font-medium' :
-               msg.role === 'system' ? 'bg-yellow-50 text-yellow-800 text-xs text-center border border-yellow-200 font-bold w-full' :
+               msg.role === 'system' ? 'bg-yellow-50 text-yellow-800 text-xs text-left border border-yellow-200 font-bold w-full shadow-sm' :
                'bg-gray-50 text-[#003366] font-medium rounded-bl-sm border border-gray-200'
              }`}>
                {msg.text}
@@ -150,12 +155,26 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
            </div>
         ))}
         
+        {/* Loading para as respostas normais de chat */}
         {isLoading && !isFinished && (
           <div className="flex justify-start">
             <div className="p-4 bg-gray-50 rounded-2xl rounded-bl-sm border border-gray-200 flex items-center gap-2">
               <div className="w-2 h-2 bg-[#003366] rounded-full animate-bounce"></div>
               <div className="w-2 h-2 bg-[#003366] rounded-full animate-bounce delay-75"></div>
               <div className="w-2 h-2 bg-[#003366] rounded-full animate-bounce delay-150"></div>
+            </div>
+          </div>
+        )}
+
+        {/* NOVO: Loading especial gigante para o Relatório do Preceptor */}
+        {isLoading && isFinished && !feedback && (
+          <div className="flex justify-center mt-8 animate-in fade-in duration-500">
+            <div className="bg-white p-8 rounded-[2rem] shadow-lg border-2 border-dashed border-[#D4A017] flex flex-col items-center justify-center gap-4 text-[#003366] w-full md:w-3/4">
+              <div className="text-5xl animate-spin text-[#D4A017]">⏳</div>
+              <div className="text-center">
+                <h4 className="font-black uppercase tracking-widest text-sm mb-2">Analisando sua Anamnese</h4>
+                <p className="text-xs font-medium text-gray-500">O Preceptor está formulando o relatório e calculando sua nota...</p>
+              </div>
             </div>
           </div>
         )}
@@ -191,7 +210,7 @@ const OsceAIView: React.FC<OsceAIViewProps> = ({ station, onBack }) => {
               <button 
                 onClick={handleSend} 
                 disabled={isLoading || !input.trim()} 
-                className="bg-[#D4A017] text-[#003366] font-black px-6 md:px-8 rounded-2xl hover:bg-[#003366] hover:text-white transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center text-xl shadow-md"
+                className="bg-[#D4A017] text-[#003366] font-black px-6 md:px-8 rounded-2xl hover:bg-[#003366] hover:text-white transition-all disabled:opacity-50 flex items-center justify-center text-xl shadow-md"
               >
                 ➤
               </button>
