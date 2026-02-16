@@ -20,7 +20,7 @@ export interface OsceStation {
   theme: string;
   title: string;
   scenario: string;
-  setting?: string; // NOVO CAMPO: Onde o aluno está e o que tem disponível
+  setting?: string;
   task: string;
   tip?: string;
   checklist: string[];
@@ -45,7 +45,8 @@ export interface Summary {
   disciplineId: string;
   label: string;
   url: string;
-  type: 'summary' | 'script';
+  // NOVO: Adicionado o tipo 'other'
+  type: 'summary' | 'script' | 'other';
   isFolder?: boolean;
   date: string;
 }
