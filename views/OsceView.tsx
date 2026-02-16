@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { OsceStation } from '../types';
 
@@ -12,6 +11,11 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
   const [isFinished, setIsFinished] = useState(false);
   const [score, setScore] = useState(0);
   const [timer, setTimer] = useState(0);
+
+  // PROTEÇÃO MÁXIMA: Garante que mesmo se o Firebase devolver dados corrompidos, o app não quebra
+  const safeActionCloud = station.actionCloud || [];
+  const safeOrderIndices = station.correctOrderIndices || [];
+  const safeChecklist = station.checklist || [];
 
   useEffect(() => {
     let interval: any;
@@ -38,20 +42,20 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
 
   const calculateDetailedScore = () => {
     let points = 0;
-    const maxPoints = station.correctOrderIndices.length * 1.5;
+    const maxPoints = safeOrderIndices.length * 1.5;
 
-    station.correctOrderIndices.forEach((correctIdx, position) => {
+    safeOrderIndices.forEach((correctIdx, position) => {
       const userIndex = selectedActions.indexOf(correctIdx);
       if (userIndex !== -1) {
         points += 1.0; // Ação correta
-        if (userIndex === position) points += 0.5; // Bônus de ordem
+        if (userIndex === position) points += 0.5; // Bônus de ordem exata
       }
     });
 
-    const errors = selectedActions.filter(i => !station.correctOrderIndices.includes(i)).length;
+    const errors = selectedActions.filter(i => !safeOrderIndices.includes(i)).length;
     points = Math.max(0, points - (errors * 0.5));
 
-    const final = (points / maxPoints) * 10;
+    const final = maxPoints > 0 ? (points / maxPoints) * 10 : 0;
     setScore(parseFloat(final.toFixed(1)));
     setIsFinished(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -103,7 +107,7 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
                   {selectedActions.map((idx, i) => (
                     <div key={i} className="bg-white px-4 py-2 rounded-xl shadow-sm border text-xs font-bold text-[#003366] flex items-center gap-2 animate-in zoom-in">
                       <span className="bg-[#003366] text-white w-5 h-5 rounded flex items-center justify-center text-[9px]">{i + 1}</span>
-                      {station.actionCloud[idx]}
+                      {safeActionCloud[idx]}
                       <button onClick={() => toggleAction(idx)} className="ml-2 text-red-400 hover:text-red-600">✕</button>
                     </div>
                   ))}
@@ -111,7 +115,7 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {station.actionCloud.map((action, idx) => (
+                {safeActionCloud.map((action, idx) => (
                   <button
                     key={idx}
                     disabled={selectedActions.includes(idx)}
@@ -142,7 +146,7 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
                 
                 <div className="space-y-4">
                   {selectedActions.map((actionIdx, userPos) => {
-                    const correctPos = station.correctOrderIndices.indexOf(actionIdx);
+                    const correctPos = safeOrderIndices.indexOf(actionIdx);
                     const isCorrect = correctPos !== -1;
                     const onTime = correctPos === userPos;
 
@@ -157,7 +161,7 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
                             {userPos + 1}
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-gray-800">{station.actionCloud[actionIdx]}</p>
+                            <p className="text-sm font-bold text-gray-800">{safeActionCloud[actionIdx]}</p>
                             <p className="text-[10px] font-black uppercase tracking-widest mt-1">
                               {!isCorrect ? '❌ Ação Incorreta' : onTime ? '✅ Perfeito' : `⚠️ Fora de Ordem (Era o ${correctPos + 1}º)`}
                             </p>
@@ -174,10 +178,10 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
                   <span>🏆</span> Gabarito Padrão-Ouro
                 </h4>
                 <div className="space-y-3">
-                  {station.correctOrderIndices.map((idx, i) => (
+                  {safeOrderIndices.map((idx, i) => (
                     <div key={i} className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
                       <span className="text-[#D4A017] font-black text-sm">{i + 1}.</span>
-                      <p className="text-sm font-medium">{station.actionCloud[idx]}</p>
+                      <p className="text-sm font-medium">{safeActionCloud[idx]}</p>
                     </div>
                   ))}
                 </div>
