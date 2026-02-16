@@ -12,14 +12,12 @@ const SummariesListView: React.FC<SummariesListViewProps> = ({ disciplineId, dis
   const discipline = disciplines.find(d => d.id === disciplineId);
   const disciplineSummaries = summaries.filter(s => s.disciplineId === disciplineId);
 
-  // Divide os ficheiros por tipo
   const resumos = disciplineSummaries.filter(s => s.type === 'summary');
   const roteiros = disciplineSummaries.filter(s => s.type === 'script');
-  const outros = disciplineSummaries.filter(s => s.type === 'other' || !s.type); // Antigos ficam em "outros" se não tiverem tipo
+  const outros = disciplineSummaries.filter(s => s.type === 'other' || !s.type);
 
   if (!discipline) return null;
 
-  // Bloco reutilizável para desenhar cada secção
   const renderList = (list: Summary[], emptyMsg: string, icon: string, title: string) => (
     <div className="mb-12">
       <h3 className="text-lg font-black text-[#003366] uppercase mb-4 flex items-center gap-2 border-b border-gray-100 pb-3">
