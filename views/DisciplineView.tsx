@@ -13,6 +13,9 @@ const DisciplineView: React.FC<DisciplineViewProps> = ({ disciplineId, disciplin
   const discipline = disciplines.find(d => d.id === disciplineId);
   if (!discipline) return null;
 
+  // IDENTIFICADOR AUTOMÁTICO DE UC
+  const isUC = disciplineId.toLowerCase().startsWith('uc');
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-32">
       <button 
@@ -53,13 +56,22 @@ const DisciplineView: React.FC<DisciplineViewProps> = ({ disciplineId, disciplin
           <p className="text-xs text-gray-500 font-medium">Avalie seus conhecimentos com questões de múltipla escolha.</p>
         </button>
 
+        {/* BOTÃO PRÁTICO INTELIGENTE (OSCE vs LABORATÓRIO) */}
         <button onClick={() => onSelectOption('osce-setup')} className="bg-white p-6 md:p-8 rounded-[2rem] text-left hover:shadow-xl transition-all group border-2 border-transparent hover:border-[#D4A017]">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-50 text-[#003366] rounded-xl flex items-center justify-center text-2xl group-hover:bg-[#003366] group-hover:text-white transition-colors">🩺</div>
+            <div className="w-12 h-12 bg-blue-50 text-[#003366] rounded-xl flex items-center justify-center text-2xl group-hover:bg-[#003366] group-hover:text-white transition-colors">
+              {isUC ? '🔬' : '🩺'}
+            </div>
             <div className="text-gray-300 group-hover:text-[#D4A017] transition-colors">→</div>
           </div>
-          <h3 className="text-xl font-black text-[#003366] mb-2 uppercase tracking-tight">Simulado Prático (OSCE)</h3>
-          <p className="text-xs text-gray-500 font-medium">Treine o passo a passo de exames clínicos de forma gamificada.</p>
+          <h3 className="text-xl font-black text-[#003366] mb-2 uppercase tracking-tight">
+            {isUC ? 'Simulado de Laboratório' : 'Simulado Prático (OSCE)'}
+          </h3>
+          <p className="text-xs text-gray-500 font-medium">
+            {isUC 
+              ? 'Treine a identificação de lâminas histológicas e peças anatômicas.' 
+              : 'Treine o passo a passo de exames clínicos de forma gamificada.'}
+          </p>
         </button>
 
         {disciplineId === 'hm2' && (
@@ -90,12 +102,6 @@ const DisciplineView: React.FC<DisciplineViewProps> = ({ disciplineId, disciplin
           </div>
           <h3 className="text-xl font-black text-[#003366] mb-2 uppercase tracking-tight">Referências Bibliográficas</h3>
           <p className="text-xs text-gray-500 font-medium">Links diretos para os livros oficiais na biblioteca da faculdade.</p>
-        </button>
-      </div>
-
-      <div className="mt-8 text-center">
-        <button onClick={() => onSelectOption('share-material')} className="text-[#003366] font-black text-[10px] uppercase tracking-[0.2em] underline hover:text-[#D4A017] transition-colors">
-          Contribuir com um Material +
         </button>
       </div>
     </div>
