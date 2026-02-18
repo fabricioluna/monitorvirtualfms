@@ -6,11 +6,14 @@ interface OsceSetupViewProps {
   availableStations: OsceStation[];
   onStart: (station: OsceStation) => void;
   onBack: () => void;
-  isAIMode?: boolean; // Define se a tela está chamando o Paciente Virtual
+  isAIMode?: boolean; 
 }
 
 const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStations, onStart, onBack, isAIMode = false }) => {
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+
+  // IDENTIFICADOR AUTOMÁTICO DE UC
+  const isUC = discipline.id.toLowerCase().startsWith('uc');
 
   const handleSurpriseAll = () => {
     if (availableStations.length === 0) return;
@@ -37,9 +40,9 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
       
       <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100">
         <div className="text-center mb-10 border-b pb-8">
-          <div className="text-5xl mb-4">{isAIMode ? '🤖' : '🩺'}</div>
+          <div className="text-5xl mb-4">{isAIMode ? '🤖' : (isUC ? '🔬' : '🩺')}</div>
           <h2 className="text-3xl font-black text-[#003366] uppercase mb-2 tracking-tighter">
-            {isAIMode ? 'Paciente Virtual por IA' : 'Laboratório de Habilidades'}
+            {isAIMode ? 'Paciente Virtual por IA' : (isUC ? 'Simulado de Laboratório' : 'Laboratório de Habilidades')}
           </h2>
           <p className="text-[#D4A017] text-[10px] font-black uppercase tracking-[0.3em]">
             {isAIMode ? 'Treine Anamnese Realista' : discipline.title}
@@ -49,7 +52,7 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
         {availableStations.length === 0 ? (
            <div className="text-center py-10 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200">
               <span className="text-4xl opacity-20 block mb-4">📁</span>
-              <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Nenhuma estação clínica disponível no momento.</p>
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Nenhuma estação disponível no momento.</p>
            </div>
         ) : selectedTheme === null ? (
           <div>
@@ -66,7 +69,9 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
                 <div className="flex items-center gap-5 text-left">
                   <div className="text-4xl group-hover:animate-spin">🎲</div>
                   <div>
-                    <h3 className="text-lg font-black uppercase tracking-tight">Paciente Surpresa (Geral)</h3>
+                    <h3 className="text-lg font-black uppercase tracking-tight">
+                      {isUC ? 'Bancada Surpresa (Geral)' : 'Paciente Surpresa (Geral)'}
+                    </h3>
                     <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Sorteia entre todas as {availableStations.length} estações</p>
                   </div>
                 </div>
@@ -102,7 +107,7 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
         ) : (
           <div className="animate-in slide-in-from-right-8 duration-300">
             <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 text-center">
-              2º Passo: Selecione o Caso de {selectedTheme}
+              2º Passo: Selecione {isUC ? `a Bancada de ${selectedTheme}` : `o Caso de ${selectedTheme}`}
             </label>
             <div className="grid grid-cols-1 gap-4">
               <button
@@ -112,8 +117,12 @@ const OsceSetupView: React.FC<OsceSetupViewProps> = ({ discipline, availableStat
                 <div className="flex items-center gap-4 text-left">
                   <div className="text-3xl group-hover:animate-spin">🎲</div>
                   <div>
-                    <h3 className="text-md font-black uppercase tracking-tight">Paciente Surpresa neste Eixo</h3>
-                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Sorteia um caso aleatório de {selectedTheme}</p>
+                    <h3 className="text-md font-black uppercase tracking-tight">
+                      {isUC ? 'Bancada Surpresa neste Eixo' : 'Paciente Surpresa neste Eixo'}
+                    </h3>
+                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">
+                      {isUC ? `Sorteia uma bancada aleatória de ${selectedTheme}` : `Sorteia um caso aleatório de ${selectedTheme}`}
+                    </p>
                   </div>
                 </div>
                 <div className="font-black text-xl opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all">→</div>
