@@ -12,6 +12,9 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
   const [score, setScore] = useState(0);
   const [timer, setTimer] = useState(0);
 
+  // IDENTIFICADOR AUTOMÁTICO DE UC
+  const isUC = station.disciplineId.toLowerCase().startsWith('uc');
+
   const safeActionCloud = station.actionCloud || [];
   const safeOrderIndices = station.correctOrderIndices || [];
 
@@ -76,7 +79,7 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
           
           <div className="bg-white p-8 rounded-[2rem] shadow-xl border-t-8 border-[#003366]">
             <h3 className="text-[10px] font-black text-[#003366] uppercase mb-4 tracking-widest flex items-center gap-2">
-              <span>📋</span> Cenário Clínico
+              <span>{isUC ? '🔬' : '📋'}</span> {isUC ? 'Contexto da Bancada' : 'Cenário Clínico'}
             </h3>
             <p className="text-gray-700 leading-relaxed text-base md:text-lg font-medium mb-6">"{station.scenario}"</p>
             
@@ -115,7 +118,9 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
         <div className="lg:col-span-2">
           {!isFinished ? (
             <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl">
-              <h3 className="text-xl font-black text-[#003366] uppercase mb-8">Nuvem de Condutas</h3>
+              <h3 className="text-xl font-black text-[#003366] uppercase mb-8">
+                {isUC ? 'Nuvem de Identificações / Ações' : 'Nuvem de Condutas'}
+              </h3>
               
               <div className="mb-10">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4">Sua Sequência:</label>
@@ -153,7 +158,7 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
               <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border-b-8 border-[#D4A017]">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2">Desempenho Final</p>
                 <h4 className="text-7xl font-black text-[#003366]">{score}</h4>
-                <p className="text-sm font-bold text-[#D4A017] mt-2">Checklist FMS concluído em {formatTime(timer)}</p>
+                <p className="text-sm font-bold text-[#D4A017] mt-2">Checklist concluído em {formatTime(timer)}</p>
               </div>
 
               <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl">
@@ -209,7 +214,7 @@ const OsceView: React.FC<OsceViewProps> = ({ station, onBack }) => {
                   onClick={onBack}
                   className="bg-[#D4A017] text-[#003366] px-12 py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl hover:scale-105 transition-all"
                 >
-                  Voltar e Treinar Outra 🩺
+                  Voltar e Treinar Outra
                 </button>
               </div>
             </div>
