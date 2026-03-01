@@ -9,6 +9,8 @@ import {
   update,
   off 
 } from "firebase/database";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -22,18 +24,18 @@ const firebaseConfig = {
   measurementId: "G-GJW5RPXJ1S"
 };
 
-// Inicializa o Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializa Analytics apenas no cliente
 if (typeof window !== "undefined") {
   getAnalytics(app);
 }
 
-// Exporta o banco de dados
+// Banco Realtime (para o portal original funcionar)
 export const db = getDatabase(app);
-
-// Exporta as funções do banco de dados para que o App.tsx as encontre
 export { ref, onValue, push, remove, set, update, off };
+
+// Banco Firestore e Storage (para a nova Central de Materiais)
+export const firestoreDB = getFirestore(app);
+export const storage = getStorage(app);
 
 export default app;
