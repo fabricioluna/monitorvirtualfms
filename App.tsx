@@ -36,6 +36,14 @@ const App: React.FC = () => {
   const [osceStations, setOsceStations] = useState<OsceStation[]>([]);
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
 
+  // ==========================================
+  // NOVA FUNÇÃO: ROLAR PARA O TOPO AO MUDAR DE TELA
+  // ==========================================
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentView]);
+  // ==========================================
+
   useEffect(() => {
     if (!db) {
       setIsLoading(false);
@@ -162,7 +170,6 @@ const App: React.FC = () => {
         )}
         {currentView === 'quiz' && <QuizView questions={quizFilteredQuestions} discipline={currentDiscipline!} onBack={() => setCurrentView('quiz-setup')} onSaveResult={(score, total) => db && push(ref(db, 'quizResults'), { score, total, date: new Date().toLocaleString(), discipline: currentDiscipline?.title })} />}
         
-        {/* CENTRAL DE MATERIAIS - AGORA RECEBE A FUNÇÃO onShareClick */}
         {currentView === 'summaries-list' && selectedDisciplineId && (
           <SummariesListView 
             disciplineId={selectedDisciplineId} 
