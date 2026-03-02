@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 
@@ -45,21 +44,21 @@ const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
           <nav className="hidden md:flex items-center gap-4">
             <button 
               onClick={() => navigateTo('career-quiz')}
-              className="text-[10px] uppercase tracking-widest font-black bg-[#D4A017] text-[#003366] px-5 py-2.5 rounded-lg hover:bg-yellow-500 transition-all whitespace-nowrap shadow-lg animate-pulse hover:animate-none"
+              className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-black bg-transparent border-2 border-[#D4A017] text-[#D4A017] px-5 py-2 rounded-lg hover:bg-[#D4A017] hover:text-[#003366] transition-all whitespace-nowrap shadow-sm"
             >
               ⭐ ESPECIALIDADE
             </button>
             <button 
               onClick={() => navigateTo('calculators')}
-              className="text-[10px] uppercase tracking-widest font-black text-[#D4A017] border-2 border-[#D4A017]/30 px-5 py-2.5 rounded-lg hover:bg-[#D4A017] hover:text-[#003366] hover:border-[#D4A017] transition-all whitespace-nowrap"
+              className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-black bg-transparent border-2 border-[#D4A017] text-[#D4A017] px-5 py-2 rounded-lg hover:bg-[#D4A017] hover:text-[#003366] transition-all whitespace-nowrap shadow-sm"
             >
-              CALCULADORAS
+              📊 CALCULADORAS
             </button>
             <button 
               onClick={() => navigateTo('admin')}
-              className="text-[10px] uppercase tracking-widest font-black text-white/70 border-2 border-white/10 px-5 py-2.5 rounded-lg hover:border-white hover:text-white transition-all bg-white/5 whitespace-nowrap"
+              className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-black text-white/70 border-2 border-white/10 px-5 py-2 rounded-lg hover:border-white hover:text-white transition-all bg-white/5 whitespace-nowrap"
             >
-              ADMIN
+              ⚙️ ADMIN
             </button>
           </nav>
 
@@ -82,22 +81,22 @@ const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
       {/* Menu Mobile Dropdown */}
       {isMenuOpen && (
         <div className="md:hidden bg-[#002244] border-t border-[#D4A017]/20 p-4 animate-in slide-in-from-top duration-300">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <button 
               onClick={() => navigateTo('career-quiz')}
-              className="w-full text-left py-3 px-4 text-sm font-black text-white bg-[#D4A017] rounded-lg"
+              className="w-full text-left py-3 px-4 text-sm font-black bg-transparent border-2 border-[#D4A017] text-[#D4A017] rounded-lg hover:bg-[#D4A017]/10 transition-all"
             >
               ⭐ QUAL MINHA ESPECIALIDADE?
             </button>
             <button 
               onClick={() => navigateTo('calculators')}
-              className="w-full text-left py-3 px-4 text-sm font-black text-[#D4A017] border border-[#D4A017]/20 rounded-lg hover:bg-[#D4A017]/10"
+              className="w-full text-left py-3 px-4 text-sm font-black bg-transparent border-2 border-[#D4A017] text-[#D4A017] rounded-lg hover:bg-[#D4A017]/10 transition-all"
             >
               📊 CALCULADORAS
             </button>
             <button 
               onClick={() => navigateTo('admin')}
-              className="w-full text-left py-3 px-4 text-sm font-black text-white/70 border border-white/10 rounded-lg hover:bg-white/5"
+              className="w-full text-left py-3 px-4 text-sm font-black text-white/70 border-2 border-white/10 rounded-lg hover:bg-white/5 transition-all"
             >
               ⚙️ ADMINISTRAÇÃO
             </button>
