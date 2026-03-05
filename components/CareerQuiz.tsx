@@ -595,7 +595,8 @@ export const CareerQuiz: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <p className="mt-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Passo {currentIdx + 1} de {quizQuestions.length}</p>
       </div>
 
-      <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl border border-gray-50 relative overflow-hidden">
+      {/* CARD MAIS SLIM */}
+      <div className="bg-white p-5 md:p-6 rounded-[2rem] shadow-2xl border border-gray-50 relative overflow-hidden">
         <div className="flex justify-between items-center mb-5">
            <p className="text-[9px] font-black uppercase text-[#D4A017] tracking-[0.2em]">
              {q.category === 'Lifestyle' ? 'Estilo de Vida' : 
@@ -606,16 +607,20 @@ export const CareerQuiz: React.FC<{ onBack: () => void }> = ({ onBack }) => {
            <span className="bg-[#003366]/5 px-3 py-1 rounded-full text-[9px] font-black text-[#003366]">{currentIdx + 1}/30</span>
         </div>
         
-        <h3 className="text-lg md:text-xl font-black text-[#003366] mb-8 leading-tight">{q.text}</h3>
+        {/* TEXTO DA PERGUNTA UM POUCO MENOR */}
+        <h3 className="text-base md:text-lg font-black text-[#003366] mb-5 leading-tight">{q.text}</h3>
         
-        <div className="grid gap-2.5">
+        {/* GAP (ESPAÇO) MENOR ENTRE OS BOTÕES */}
+        <div className="grid gap-2">
           {q.options.map((opt, i) => (
             <button
               key={i}
               onClick={() => handleAnswer(opt.weights)}
-              className="w-full text-left p-3.5 md:p-4 rounded-xl border-2 border-gray-50 hover:border-[#003366] hover:bg-[#003366]/5 transition-all group flex items-center justify-between shadow-sm"
+              // BOTÃO MAIS FINO (p-3)
+              className="w-full text-left p-3 rounded-xl border-2 border-gray-50 hover:border-[#003366] hover:bg-[#003366]/5 transition-all group flex items-center justify-between shadow-sm"
             >
-              <span className="text-[13px] md:text-sm font-bold text-gray-600 group-hover:text-[#003366] leading-snug pr-4">{opt.text}</span>
+              {/* FONTE DAS RESPOSTAS MAIS COMPACTA */}
+              <span className="text-xs md:text-[13px] font-bold text-gray-600 group-hover:text-[#003366] leading-snug pr-4">{opt.text}</span>
               <div className="w-6 h-6 bg-gray-50 rounded-md flex items-center justify-center group-hover:bg-[#003366] group-hover:text-white transition-all shrink-0">
                 <ArrowRight size={14} />
               </div>
