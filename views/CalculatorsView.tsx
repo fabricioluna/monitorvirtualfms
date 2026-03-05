@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 type CalcType = 'UC' | 'HabMed' | 'IESC' | 'UCCG';
@@ -8,32 +7,109 @@ const CalculatorsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [result, setResult] = useState<number | null>(null);
   const [extraPoints, setExtraPoints] = useState('');
 
-  // UC (Teórica 4.2 + Prática 3.0 + Tutoria 2.8)
+  // --- ESTADOS: UNIDADE CURRICULAR (UC) ---
   const [numSps, setNumSps] = useState(6);
   const [spGrades, setSpGrades] = useState<string[]>(Array(6).fill(''));
+  
+  const [teoricaMode, setTeoricaMode] = useState<'acertos' | 'nota'>('acertos');
+  const [praticaMode, setPraticaMode] = useState<'acertos' | 'nota'>('acertos');
+
   const [teoricaTotal, setTeoricaTotal] = useState('30');
   const [teoricaAcertos, setTeoricaAcertos] = useState('');
-  const [praticaAnatomia, setPraticaAnatomia] = useState('');
-  const [praticaMorfo, setPraticaMorfo] = useState('');
+  const [teoricaNotaDirect, setTeoricaNotaDirect] = useState('');
+  
+  const [praticaAnatomiaAcertos, setPraticaAnatomiaAcertos] = useState('');
+  const [praticaMorfoAcertos, setPraticaMorfoAcertos] = useState('');
+  const [praticaAnatomiaNota, setPraticaAnatomiaNota] = useState('');
+  const [praticaMorfoNota, setPraticaMorfoNota] = useState('');
 
-  // IESC (T 1.5 + P 1.0 + E 1.5 + Po 1.0) x 2 semestres
+  // --- ESTADOS: IESC ---
   const [iescGrades, setIescGrades] = useState({
     n1_teorica: '', n1_pratica: '', n1_extensao: '', n1_portfolio: '',
     n2_teorica: '', n2_pratica: '', n2_extensao: '', n2_portfolio: ''
   });
 
-  // UCCG (T 2.5 + E 2.5) x 2 semestres
+  // --- ESTADOS: UCCG ---
   const [uccgGrades, setUccgGrades] = useState({
-    n1_teorica: '', n1_extensao: '',
-    n2_teorica: '', n2_extensao: ''
+    n1_teorica: '', n1_extensao: '', n2_teorica: '', n2_extensao: ''
   });
 
-  // HabMed (T 1.5 + PF 1.0 + PS 2.5) x 2 semestres
+  // --- ESTADOS: HABMED ---
   const [habmedGrades, setHabmedGrades] = useState({
     n1_formativa: '', n1_somativa: '', n1_teorica: '',
     n2_formativa: '', n2_somativa: '', n2_teorica: ''
   });
 
+  // --- FUNÇÕES DE CÁLCULO PARCIAL (UC) ---
+  const getTutoriaPartial = () => {
+    const sps = spGrades.map(v => parseFloat(v.replace(',', '.')) || 0);
+    const average100 = (sps.reduce((a, b) => a + b, 0) / (sps.length || 1));
+    return average100 / 10; 
+  };
+
+  const getTeoricaPartial = () => {
+    if (teoricaMode === 'nota') return parseFloat(teoricaNotaDirect.replace(',', '.')) || 0;
+    const total = parseFloat(teoricaTotal) || 1;
+    const acertos = parseFloat(teoricaAcertos.replace(',', '.')) || 0;
+    return (acertos / total) * 10;
+  };
+
+  const getPraticaPartial = () => {
+    if (praticaMode === 'nota') {
+      const a = parseFloat(praticaAnatomiaNota.replace(',', '.')) || 0;
+      const m = parseFloat(praticaMorfoNota.replace(',', '.')) || 0;
+      return (a + m) / 2; 
+    }
+    const a = parseFloat(praticaAnatomiaAcertos.replace(',', '.')) || 0;
+    const m = parseFloat(praticaMorfoAcertos.replace(',', '.')) || 0;
+    return ((a + m) / 20) * 10;
+  };
+
+  const getNeededHitsStatus = () => {
+    const tutoria = getTutoriaPartial(); 
+    const pratica = getPraticaPartial();
+    const totalQ = parseFloat(teoricaTotal) || 30;
+    const atuais = parseFloat(teoricaAcertos) || 0;
+    const tpExtra = parseFloat(extraPoints.replace(',', '.')) || 0;
+    
+    const neededTeoricaGrade = (7 - tpExtra - (pratica * 0.30) - (tutoria * 0.28)) / 0.42;
+    const totalNeededHits = Math.ceil((neededTeoricaGrade * totalQ) / 10);
+    
+    if (totalNeededHits <= 0 || atuais >= totalNeededHits) return { text: "Meta Atingida! 🎉", color: "text-green-500" };
+    if (totalNeededHits > totalQ) return { text: "Meta impossível (7.0)", color: "text-red-400" };
+    const missing = totalNeededHits - atuais;
+    return { text: `Faltam ${missing} questões`, color: "text-[#003366]" };
+  };
+
+  // --- CÁLCULO AUTOMÁTICO (useEffect) ---
+  useEffect(() => {
+    let base = 0;
+    const extra = parseFloat(extraPoints.replace(',', '.')) || 0;
+
+    if (activeCalc === 'UC') {
+      base = (getTeoricaPartial() * 0.42) + (getPraticaPartial() * 0.30) + (getTutoriaPartial() * 0.28);
+    } else if (activeCalc === 'IESC') {
+      const n1 = (parseFloat(iescGrades.n1_teorica) * 0.15) + (parseFloat(iescGrades.n1_pratica) * 0.10) + (parseFloat(iescGrades.n1_extensao) * 0.15) + (parseFloat(iescGrades.n1_portfolio) * 0.10);
+      const n2 = (parseFloat(iescGrades.n2_teorica) * 0.15) + (parseFloat(iescGrades.n2_pratica) * 0.10) + (parseFloat(iescGrades.n2_extensao) * 0.15) + (parseFloat(iescGrades.n2_portfolio) * 0.10);
+      base = n1 + n2;
+    } else if (activeCalc === 'UCCG') {
+      const n1 = (parseFloat(uccgGrades.n1_teorica) * 0.25) + (parseFloat(uccgGrades.n1_extensao) * 0.25);
+      const n2 = (parseFloat(uccgGrades.n2_teorica) * 0.25) + (parseFloat(uccgGrades.n2_extensao) * 0.25);
+      base = n1 + n2;
+    } else if (activeCalc === 'HabMed') {
+      const n1 = (parseFloat(habmedGrades.n1_formativa) * 0.10) + (parseFloat(habmedGrades.n1_somativa) * 0.25) + (parseFloat(habmedGrades.n1_teorica) * 0.15);
+      const n2 = (parseFloat(habmedGrades.n2_formativa) * 0.10) + (parseFloat(habmedGrades.n2_somativa) * 0.25) + (parseFloat(habmedGrades.n2_teorica) * 0.15);
+      base = n1 + n2;
+    }
+
+    setResult(parseFloat((base + extra).toFixed(2)));
+  }, [
+    activeCalc, spGrades, numSps, teoricaMode, praticaMode, teoricaTotal, 
+    teoricaAcertos, teoricaNotaDirect, praticaAnatomiaAcertos, praticaMorfoAcertos, 
+    praticaAnatomiaNota, praticaMorfoNota, extraPoints, iescGrades, habmedGrades, uccgGrades
+  ]);
+
+  // Sincroniza SPs
   useEffect(() => {
     setSpGrades(prev => {
       if (numSps > prev.length) return [...prev, ...Array(numSps - prev.length).fill('')];
@@ -41,120 +117,42 @@ const CalculatorsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     });
   }, [numSps]);
 
-  const handleInputChange = (setter: any, field: string, value: string) => {
+  const handleInputChange = (value: string, setter: (v: string) => void) => {
+    if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value.replace(',', '.'))) setter(value);
+  };
+
+  const handleModuleInputChange = (setter: any, field: string, value: string) => {
     if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value.replace(',', '.'))) {
       setter((prev: any) => ({ ...prev, [field]: value }));
-      setResult(null);
     }
   };
 
-  const handleExtraPointsChange = (value: string) => {
-    if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value.replace(',', '.'))) {
-      setExtraPoints(value);
-      setResult(null);
-    }
-  };
-
-  // Funções de Cálculo Parcial (Escala 0-10 para visualização)
-  const getTutoriaPartial = () => {
-    const sps = spGrades.map(v => parseFloat(v.replace(',', '.')) || 0);
-    return (sps.reduce((a, b) => a + b, 0) / (sps.length || 1)) / 10; 
-  };
-
-  const getTeoricaPartial = () => {
-    const total = parseFloat(teoricaTotal) || 1;
-    const acertos = parseFloat(teoricaAcertos.replace(',', '.')) || 0;
-    return (acertos / total) * 10;
-  };
-
-  const getPraticaPartial = () => {
-    const a = parseFloat(praticaAnatomia.replace(',', '.')) || 0;
-    const m = parseFloat(praticaMorfo.replace(',', '.')) || 0;
-    return ((a + m) / 20) * 10;
-  };
-
-  // Scores em Escala 0-5.0 (Pois somados dão 10)
-  const getIescN1Score = () => {
-    const t = parseFloat(iescGrades.n1_teorica.replace(',', '.')) || 0;
-    const p = parseFloat(iescGrades.n1_pratica.replace(',', '.')) || 0;
-    const e = parseFloat(iescGrades.n1_extensao.replace(',', '.')) || 0;
-    const po = parseFloat(iescGrades.n1_portfolio.replace(',', '.')) || 0;
-    return (t * 0.15) + (p * 0.10) + (e * 0.15) + (po * 0.10);
-  };
-
-  const getIescN2Score = () => {
-    const t = parseFloat(iescGrades.n2_teorica.replace(',', '.')) || 0;
-    const p = parseFloat(iescGrades.n2_pratica.replace(',', '.')) || 0;
-    const e = parseFloat(iescGrades.n2_extensao.replace(',', '.')) || 0;
-    const po = parseFloat(iescGrades.n2_portfolio.replace(',', '.')) || 0;
-    return (t * 0.15) + (p * 0.10) + (e * 0.15) + (po * 0.10);
-  };
-
-  const getUccgN1Score = () => {
-    const t = parseFloat(uccgGrades.n1_teorica.replace(',', '.')) || 0;
-    const e = parseFloat(uccgGrades.n1_extensao.replace(',', '.')) || 0;
-    return (t * 0.25) + (e * 0.25);
-  };
-
-  const getUccgN2Score = () => {
-    const t = parseFloat(uccgGrades.n2_teorica.replace(',', '.')) || 0;
-    const e = parseFloat(uccgGrades.n2_extensao.replace(',', '.')) || 0;
-    return (t * 0.25) + (e * 0.25);
-  };
-
-  const getHabmedN1Score = () => {
-    const f = parseFloat(habmedGrades.n1_formativa.replace(',', '.')) || 0;
-    const s = parseFloat(habmedGrades.n1_somativa.replace(',', '.')) || 0;
-    const t = parseFloat(habmedGrades.n1_teorica.replace(',', '.')) || 0;
-    return (f * 0.10) + (s * 0.25) + (t * 0.15);
-  };
-
-  const getHabmedN2Score = () => {
-    const f = parseFloat(habmedGrades.n2_formativa.replace(',', '.')) || 0;
-    const s = parseFloat(habmedGrades.n2_somativa.replace(',', '.')) || 0;
-    const t = parseFloat(habmedGrades.n2_teorica.replace(',', '.')) || 0;
-    return (f * 0.10) + (s * 0.25) + (t * 0.15);
-  };
-
-  const calculateAverage = () => {
-    let baseAverage = 0;
-    const extra = parseFloat(extraPoints.replace(',', '.')) || 0;
-
-    if (activeCalc === 'UC') {
-      baseAverage = (getTeoricaPartial() * 0.42) + (getPraticaPartial() * 0.30) + (getTutoriaPartial() * 0.28);
-    } else if (activeCalc === 'IESC') {
-      baseAverage = getIescN1Score() + getIescN2Score();
-    } else if (activeCalc === 'UCCG') {
-      baseAverage = getUccgN1Score() + getUccgN2Score();
-    } else if (activeCalc === 'HabMed') {
-      baseAverage = getHabmedN1Score() + getHabmedN2Score();
-    }
-
-    setResult(parseFloat((baseAverage + extra).toFixed(2)));
-  };
-
-  const inputClass = "w-full bg-gray-50 p-4 rounded-2xl border-2 border-transparent focus:border-[#003366] outline-none text-[#003366] font-bold text-center text-lg transition-all placeholder:text-gray-200 shadow-inner";
+  // --- CLASSES DE DESIGN (Adaptadas para a Turma VIII) ---
+  const inputClass = "w-full bg-white text-[#003366] p-4 rounded-2xl border border-gray-200 focus:border-[#D4A017] outline-none font-bold text-center text-lg transition-all shadow-sm";
   const labelClass = "text-[10px] font-black uppercase text-gray-400 mb-2 block tracking-widest ml-1";
-  const sectionTitleClass = "text-xs font-black text-[#003366] uppercase tracking-[0.2em] mb-4 flex items-center justify-between gap-2 w-full";
-  const partialBadgeClass = "bg-[#f4f7f6] px-3 py-1 rounded-lg text-[9px] font-black text-[#003366] border border-gray-100 flex items-center gap-1.5";
+  const sectionTitleClass = "text-[11px] font-black text-[#003366] uppercase tracking-[0.2em] mb-6 flex items-center justify-between gap-2 w-full";
+  const numberBadge = "bg-[#003366] text-white px-2 min-w-6 h-6 rounded-lg flex items-center justify-center text-[10px] shadow-sm font-black";
+  const toggleBtnClass = (active: boolean) => `px-3 py-1 text-[9px] font-black rounded-lg transition-all ${active ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-400'}`;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-12 animate-in fade-in slide-in-from-bottom-6 duration-500">
-      <button onClick={onBack} className="group flex items-center text-[#003366] font-bold mb-10 transition-all hover:text-[#D4A017]">
-        <span className="mr-2 transition-transform group-hover:-translate-x-1">←</span> Voltar para Home
-      </button>
-
+    <div className="max-w-5xl mx-auto px-4 py-12 animate-in fade-in slide-in-from-bottom-6 duration-700">
+      
       <div className="text-center mb-12">
-        <h2 className="text-4xl font-black text-[#003366] uppercase tracking-tighter mb-2">Calculadora de Médias</h2>
-        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Padrão Oficial - Ciclo Acadêmico FMS</p>
+        <h2 className="text-4xl md:text-5xl font-black text-[#003366] mb-2 tracking-tighter italic">Calculadora</h2>
+        <p className="text-[#D4A017] text-[10px] font-black uppercase tracking-[0.3em]">Cálculo Automático • Turma VIII</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+      {/* SELETOR DE DISCIPLINAS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
         {(['UC', 'HabMed', 'IESC', 'UCCG'] as CalcType[]).map(type => (
           <button 
             key={type} 
-            onClick={() => { setActiveCalc(type); setResult(null); }} 
-            className={`py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all border-2 ${activeCalc === type ? 'bg-[#003366] text-white border-[#003366] shadow-lg scale-105' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'}`}
+            onClick={() => setActiveCalc(type)} 
+            className={`py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all border-2 ${
+              activeCalc === type 
+                ? 'bg-[#003366] text-white border-[#003366] shadow-lg' 
+                : 'bg-white text-gray-400 border-gray-100 hover:border-[#D4A017]'
+            }`}
           >
             {type === 'HabMed' ? 'Hab. Médicas' : type === 'UC' ? 'Unidade Curricular' : type}
           </button>
@@ -162,208 +160,173 @@ const CalculatorsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-10">
+        <div className="lg:col-span-2 space-y-8">
           
-          {activeCalc === 'UC' ? (
-            <div className="space-y-10">
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
+          {/* MÓDULO: UNIDADE CURRICULAR (UC) */}
+          {activeCalc === 'UC' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100">
                 <div className={sectionTitleClass}>
-                  <div className="flex items-center gap-2"><span className="bg-[#D4A017] text-[#003366] w-6 h-6 rounded-lg flex items-center justify-center text-[10px]">1</span> Tutoria (SPs) - Peso 2.8</div>
-                  <div className={partialBadgeClass}><span className="opacity-40">MÉDIA:</span><span>{(getTutoriaPartial() * 10).toFixed(2)} / 10</span></div>
+                  <div className="flex items-center gap-3"><span className={numberBadge}>1</span> Tutoria (SPs)</div>
+                  <div className="bg-gray-50 px-4 py-1.5 rounded-xl text-[10px] font-black border border-gray-100">
+                    MÉDIA (0-10): <span className="text-[#D4A017]">{getTutoriaPartial().toFixed(2)}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 mb-6">
-                  <label className="text-[10px] font-black uppercase text-gray-400">Qtd. de SPs:</label>
-                  <select value={numSps} onChange={e => setNumSps(parseInt(e.target.value))} className="bg-gray-50 px-4 py-2 rounded-xl text-xs font-bold text-[#003366] outline-none border-2 border-transparent focus:border-[#D4A017]">
+                <div className="flex items-center gap-4 mb-8">
+                  <label className="text-[10px] font-black uppercase text-gray-400">Quantidade:</label>
+                  <select value={numSps} onChange={e => setNumSps(parseInt(e.target.value))} className="bg-gray-50 border-none px-4 py-2 rounded-xl text-[10px] font-black text-[#003366] outline-none">
                     {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} SPs</option>)}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
                   {spGrades.map((grade, idx) => (
                     <div key={idx}>
-                      <label className="text-[8px] font-black text-gray-300 uppercase mb-1 block">SP {idx + 1}</label>
-                      <input type="text" value={grade} onChange={e => { const val = e.target.value; if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val.replace(',', '.'))) { const newG = [...spGrades]; newG[idx] = val; setSpGrades(newG); } }} placeholder="0-100" className={`${inputClass} !p-3 !text-sm`} />
+                      <label className="text-[9px] font-black text-gray-400 uppercase mb-2 block text-center">SP {idx + 1}</label>
+                      <input type="text" value={grade} onChange={e => handleInputChange(e.target.value, (v) => { const newG = [...spGrades]; newG[idx] = v; setSpGrades(newG); })} placeholder="0-100" className={`${inputClass} !p-3 !text-sm !rounded-xl`} />
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
+              <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100">
                 <div className={sectionTitleClass}>
-                  <div className="flex items-center gap-2"><span className="bg-[#003366] text-white w-6 h-6 rounded-lg flex items-center justify-center text-[10px]">2</span> Prova Teórica - Peso 4.2</div>
-                  <div className={partialBadgeClass}><span className="opacity-40">MÉDIA:</span><span>{getTeoricaPartial().toFixed(2)} / 10</span></div>
+                  <div className="flex items-center gap-3"><span className={numberBadge}>2</span> Prova Prática</div>
+                  <div className="flex bg-gray-50 p-1.5 rounded-2xl gap-1">
+                    <button onClick={() => setPraticaMode('acertos')} className={toggleBtnClass(praticaMode === 'acertos')}>ACERTOS</button>
+                    <button onClick={() => setPraticaMode('nota')} className={toggleBtnClass(praticaMode === 'nota')}>NOTA</button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div><label className={labelClass}>Total de Questões Válidas</label><input type="text" value={teoricaTotal} onChange={e => setTeoricaTotal(e.target.value)} placeholder="Ex: 30" className={inputClass} /></div>
-                  <div><label className={labelClass}>Suas Questões Corretas</label><input type="text" value={teoricaAcertos} onChange={e => setTeoricaAcertos(e.target.value)} placeholder="Ex: 21" className={inputClass} /></div>
+                  {praticaMode === 'acertos' ? (
+                    <>
+                      <div><label className={labelClass}>Anatomia (0-10 Acertos)</label><input type="text" value={praticaAnatomiaAcertos} onChange={e => handleInputChange(e.target.value, setPraticaAnatomiaAcertos)} placeholder="0" className={inputClass} /></div>
+                      <div><label className={labelClass}>Morfofuncional (0-10 Acertos)</label><input type="text" value={praticaMorfoAcertos} onChange={e => handleInputChange(e.target.value, setPraticaMorfoAcertos)} placeholder="0" className={inputClass} /></div>
+                    </>
+                  ) : (
+                    <>
+                      <div><label className={labelClass}>Nota Anatomia (0 a 10.0)</label><input type="text" value={praticaAnatomiaNota} onChange={e => handleInputChange(e.target.value, setPraticaAnatomiaNota)} placeholder="0.0" className={inputClass} /></div>
+                      <div><label className={labelClass}>Nota Morfo/Hist (0 a 10.0)</label><input type="text" value={praticaMorfoNota} onChange={e => handleInputChange(e.target.value, setPraticaMorfoNota)} placeholder="0.0" className={inputClass} /></div>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
+              <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100">
                 <div className={sectionTitleClass}>
-                  <div className="flex items-center gap-2"><span className="bg-blue-600 text-white w-6 h-6 rounded-lg flex items-center justify-center text-[10px]">3</span> Prova Prática - Peso 3.0</div>
-                  <div className={partialBadgeClass}><span className="opacity-40">MÉDIA:</span><span>{getPraticaPartial().toFixed(2)} / 10</span></div>
+                  <div className="flex items-center gap-3"><span className={numberBadge}>3</span> Prova Teórica</div>
+                  <div className="flex bg-gray-50 p-1.5 rounded-2xl gap-1">
+                    <button onClick={() => setTeoricaMode('acertos')} className={toggleBtnClass(teoricaMode === 'acertos')}>ACERTOS</button>
+                    <button onClick={() => setTeoricaMode('nota')} className={toggleBtnClass(teoricaMode === 'nota')}>NOTA</button>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div><label className={labelClass}>Anatomia (0 a 10 Acertos)</label><input type="text" value={praticaAnatomia} onChange={e => { const val = e.target.value; if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val.replace(',', '.'))) setPraticaAnatomia(val); }} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Morfofuncional (0 a 10 Acertos)</label><input type="text" value={praticaMorfo} onChange={e => { const val = e.target.value; if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val.replace(',', '.'))) setPraticaMorfo(val); }} placeholder="0-10" className={inputClass} /></div>
+                {teoricaMode === 'acertos' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div><label className={labelClass}>Total Questões</label><input type="text" value={teoricaTotal} onChange={e => handleInputChange(e.target.value, setTeoricaTotal)} placeholder="30" className={inputClass} /></div>
+                    <div><label className={labelClass}>Seus Acertos</label><input type="text" value={teoricaAcertos} onChange={e => handleInputChange(e.target.value, setTeoricaAcertos)} placeholder="0" className={inputClass} /></div>
+                  </div>
+                ) : (
+                  <div><label className={labelClass}>Nota Final da Teórica</label><input type="text" value={teoricaNotaDirect} onChange={e => handleInputChange(e.target.value, setTeoricaNotaDirect)} placeholder="0.0" className={inputClass} /></div>
+                )}
+                <div className="mt-10 p-6 bg-[#D4A017]/5 rounded-[2rem] border border-[#D4A017]/20 flex flex-col items-center justify-center gap-2">
+                  <div className="text-[10px] font-black text-[#D4A017] uppercase tracking-[0.3em]">🎯 Objetivo para Média 7.0</div>
+                  <div className={`text-3xl font-black tracking-tighter ${getNeededHitsStatus().color}`}>
+                    {getNeededHitsStatus().text}
+                  </div>
                 </div>
               </div>
             </div>
-          ) : activeCalc === 'IESC' ? (
-            <div className="space-y-10">
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
-                <div className={sectionTitleClass}>
-                  <div className="flex items-center gap-2"><span className="bg-green-600 text-white w-6 h-6 rounded-lg flex items-center justify-center text-[10px]">N1</span> Semestre 1 (Peso 5.0)</div>
-                  <div className={partialBadgeClass}><span className="opacity-40">NOTA N1:</span><span>{(getIescN1Score() * 2).toFixed(2)} / 10</span></div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div><label className={labelClass}>Teórica (1.5)</label><input type="text" value={iescGrades.n1_teorica} onChange={e => handleInputChange(setIescGrades, 'n1_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Prática (1.0)</label><input type="text" value={iescGrades.n1_pratica} onChange={e => handleInputChange(setIescGrades, 'n1_pratica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Extensão (1.5)</label><input type="text" value={iescGrades.n1_extensao} onChange={e => handleInputChange(setIescGrades, 'n1_extensao', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Portfólio (1.0)</label><input type="text" value={iescGrades.n1_portfolio} onChange={e => handleInputChange(setIescGrades, 'n1_portfolio', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                </div>
-              </div>
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
-                <div className={sectionTitleClass}>
-                  <div className="flex items-center gap-2"><span className="bg-blue-600 text-white w-6 h-6 rounded-lg flex items-center justify-center text-[10px]">N2</span> Semestre 2 (Peso 5.0)</div>
-                  <div className={partialBadgeClass}><span className="opacity-40">NOTA N2:</span><span>{(getIescN2Score() * 2).toFixed(2)} / 10</span></div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div><label className={labelClass}>Teórica (1.5)</label><input type="text" value={iescGrades.n2_teorica} onChange={e => handleInputChange(setIescGrades, 'n2_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Prática (1.0)</label><input type="text" value={iescGrades.n2_pratica} onChange={e => handleInputChange(setIescGrades, 'n2_pratica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Extensão (1.5)</label><input type="text" value={iescGrades.n2_extensao} onChange={e => handleInputChange(setIescGrades, 'n2_extensao', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Portfólio (1.0)</label><input type="text" value={iescGrades.n2_portfolio} onChange={e => handleInputChange(setIescGrades, 'n2_portfolio', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                </div>
-              </div>
-            </div>
-          ) : activeCalc === 'UCCG' ? (
-            <div className="space-y-10">
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
-                <div className={sectionTitleClass}>
-                  <div className="flex items-center gap-2"><span className="bg-green-600 text-white w-6 h-6 rounded-lg flex items-center justify-center text-[10px]">N1</span> Semestre 1 (Peso 5.0)</div>
-                  <div className={partialBadgeClass}><span className="opacity-40">NOTA N1:</span><span>{(getUccgN1Score() * 2).toFixed(2)} / 10</span></div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div><label className={labelClass}>Teórica (2.5)</label><input type="text" value={uccgGrades.n1_teorica} onChange={e => handleInputChange(setUccgGrades, 'n1_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Extensão (2.5)</label><input type="text" value={uccgGrades.n1_extensao} onChange={e => handleInputChange(setUccgGrades, 'n1_extensao', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                </div>
-              </div>
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
-                <div className={sectionTitleClass}>
-                  <div className="flex items-center gap-2"><span className="bg-blue-600 text-white w-6 h-6 rounded-lg flex items-center justify-center text-[10px]">N2</span> Semestre 2 (Peso 5.0)</div>
-                  <div className={partialBadgeClass}><span className="opacity-40">NOTA N2:</span><span>{(getUccgN2Score() * 2).toFixed(2)} / 10</span></div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div><label className={labelClass}>Teórica (2.5)</label><input type="text" value={uccgGrades.n2_teorica} onChange={e => handleInputChange(setUccgGrades, 'n2_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Extensão (2.5)</label><input type="text" value={uccgGrades.n2_extensao} onChange={e => handleInputChange(setUccgGrades, 'n2_extensao', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                </div>
-              </div>
-            </div>
-          ) : activeCalc === 'HabMed' ? (
-            <div className="space-y-10">
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
-                <div className={sectionTitleClass}>
-                  <div className="flex items-center gap-2"><span className="bg-green-600 text-white w-6 h-6 rounded-lg flex items-center justify-center text-[10px]">N1</span> Semestre 1 (Peso 5.0)</div>
-                  <div className={partialBadgeClass}><span className="opacity-40">NOTA N1:</span><span>{(getHabmedN1Score() * 2).toFixed(2)} / 10</span></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div><label className={labelClass}>Teórica (1.5)</label><input type="text" value={habmedGrades.n1_teorica} onChange={e => handleInputChange(setHabmedGrades, 'n1_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Prática Formativa (1.0)</label><input type="text" value={habmedGrades.n1_formativa} onChange={e => handleInputChange(setHabmedGrades, 'n1_formativa', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Prática Somativa (2.5)</label><input type="text" value={habmedGrades.n1_somativa} onChange={e => handleInputChange(setHabmedGrades, 'n1_somativa', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                </div>
-              </div>
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
-                <div className={sectionTitleClass}>
-                  <div className="flex items-center gap-2"><span className="bg-blue-600 text-white w-6 h-6 rounded-lg flex items-center justify-center text-[10px]">N2</span> Semestre 2 (Peso 5.0)</div>
-                  <div className={partialBadgeClass}><span className="opacity-40">NOTA N2:</span><span>{(getHabmedN2Score() * 2).toFixed(2)} / 10</span></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div><label className={labelClass}>Teórica (1.5)</label><input type="text" value={habmedGrades.n2_teorica} onChange={e => handleInputChange(setHabmedGrades, 'n2_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Prática Formativa (1.0)</label><input type="text" value={habmedGrades.n2_formativa} onChange={e => handleInputChange(setHabmedGrades, 'n2_formativa', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                  <div><label className={labelClass}>Prática Somativa (2.5)</label><input type="text" value={habmedGrades.n2_somativa} onChange={e => handleInputChange(setHabmedGrades, 'n2_somativa', e.target.value)} placeholder="0-10" className={inputClass} /></div>
-                </div>
-              </div>
-            </div>
-          ) : null}
+          )}
 
-          {/* Ajuste Final: Pontuação Extra - Sempre ao final da coluna de inputs */}
-          <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-2 border-dashed border-[#D4A017]/30 animate-in fade-in duration-1000">
-            <h3 className="text-[10px] font-black uppercase text-[#D4A017] tracking-[0.2em] mb-4 flex items-center gap-2">
-              🚀 Ajuste de Rendimento: Pontuação Extra
-            </h3>
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="flex-1 w-full">
-                <label className={labelClass}>Bônus a somar na média final</label>
-                <input 
-                  type="text" 
-                  value={extraPoints} 
-                  onChange={e => handleExtraPointsChange(e.target.value)} 
-                  placeholder="Ex: 0.5" 
-                  className={`${inputClass} !text-3xl focus:border-[#D4A017] !bg-orange-50/30`} 
-                />
+          {/* MÓDULO: IESC */}
+          {activeCalc === 'IESC' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100">
+                <div className={sectionTitleClass}><div className="flex items-center gap-3"><span className={numberBadge}>N1</span></div></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div><label className={labelClass}>Teórica (1.5)</label><input type="text" value={iescGrades.n1_teorica} onChange={e => handleModuleInputChange(setIescGrades, 'n1_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>Prática (1.0)</label><input type="text" value={iescGrades.n1_pratica} onChange={e => handleModuleInputChange(setIescGrades, 'n1_pratica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>Extensão (1.5)</label><input type="text" value={iescGrades.n1_extensao} onChange={e => handleModuleInputChange(setIescGrades, 'n1_extensao', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>Portfólio (1.0)</label><input type="text" value={iescGrades.n1_portfolio} onChange={e => handleModuleInputChange(setIescGrades, 'n1_portfolio', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                </div>
               </div>
-              <div className="hidden sm:block w-px h-20 bg-gray-100"></div>
-              <div className="flex-1 text-center sm:text-left">
-                <p className="text-[11px] font-bold text-gray-400 leading-relaxed italic">
-                  Utilize este campo para somar pontos de monitoria, participação em projetos de extensão ou arredondamentos institucionais.
-                </p>
+              <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100">
+                <div className={sectionTitleClass}><div className="flex items-center gap-3"><span className={numberBadge}>N2</span></div></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div><label className={labelClass}>Teórica (1.5)</label><input type="text" value={iescGrades.n2_teorica} onChange={e => handleModuleInputChange(setIescGrades, 'n2_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>Prática (1.0)</label><input type="text" value={iescGrades.n2_pratica} onChange={e => handleModuleInputChange(setIescGrades, 'n2_pratica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>Extensão (1.5)</label><input type="text" value={iescGrades.n2_extensao} onChange={e => handleModuleInputChange(setIescGrades, 'n2_extensao', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>Portfólio (1.0)</label><input type="text" value={iescGrades.n2_portfolio} onChange={e => handleModuleInputChange(setIescGrades, 'n2_portfolio', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* MÓDULO: UCCG */}
+          {activeCalc === 'UCCG' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100">
+                <div className={sectionTitleClass}><div className="flex items-center gap-3"><span className={numberBadge}>N1</span></div></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div><label className={labelClass}>Teórica (2.5)</label><input type="text" value={uccgGrades.n1_teorica} onChange={e => handleModuleInputChange(setUccgGrades, 'n1_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>Extensão (2.5)</label><input type="text" value={uccgGrades.n1_extensao} onChange={e => handleModuleInputChange(setUccgGrades, 'n1_extensao', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                </div>
+              </div>
+              <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100">
+                <div className={sectionTitleClass}><div className="flex items-center gap-3"><span className={numberBadge}>N2</span></div></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div><label className={labelClass}>Teórica (2.5)</label><input type="text" value={uccgGrades.n2_teorica} onChange={e => handleModuleInputChange(setUccgGrades, 'n2_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>Extensão (2.5)</label><input type="text" value={uccgGrades.n2_extensao} onChange={e => handleModuleInputChange(setUccgGrades, 'n2_extensao', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MÓDULO: HABMED */}
+          {activeCalc === 'HabMed' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100">
+                <div className={sectionTitleClass}><div className="flex items-center gap-3"><span className={numberBadge}>N1</span></div></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div><label className={labelClass}>Teórica (1.5)</label><input type="text" value={habmedGrades.n1_teorica} onChange={e => handleModuleInputChange(setHabmedGrades, 'n1_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>P. Formativa (1.0)</label><input type="text" value={habmedGrades.n1_formativa} onChange={e => handleModuleInputChange(setHabmedGrades, 'n1_formativa', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>P. Somativa (2.5)</label><input type="text" value={habmedGrades.n1_somativa} onChange={e => handleModuleInputChange(setHabmedGrades, 'n1_somativa', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                </div>
+              </div>
+              <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100">
+                <div className={sectionTitleClass}><div className="flex items-center gap-3"><span className={numberBadge}>N2</span></div></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div><label className={labelClass}>Teórica (1.5)</label><input type="text" value={habmedGrades.n2_teorica} onChange={e => handleModuleInputChange(setHabmedGrades, 'n2_teorica', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>P. Formativa (1.0)</label><input type="text" value={habmedGrades.n2_formativa} onChange={e => handleModuleInputChange(setHabmedGrades, 'n2_formativa', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                  <div><label className={labelClass}>P. Somativa (2.5)</label><input type="text" value={habmedGrades.n2_somativa} onChange={e => handleModuleInputChange(setHabmedGrades, 'n2_somativa', e.target.value)} placeholder="0-10" className={inputClass} /></div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Resumo Lateral (Sticky) */}
+        {/* SIDEBAR RESULTADO */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-[3rem] p-10 shadow-2xl border border-gray-100 sticky top-32 flex flex-col h-fit">
-            <h3 className="text-center text-[10px] font-black uppercase text-[#003366] tracking-[0.3em] mb-6 opacity-40">Resumo da Média Final</h3>
-            
-            <button 
-              onClick={calculateAverage} 
-              className="w-full bg-[#003366] text-white py-6 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-[#D4A017] hover:text-[#003366] transition-all mb-8 group"
-            >
-              <span className="group-hover:scale-110 inline-block transition-transform">Calcular Nota</span>
-            </button>
-
-            <div className="flex flex-col items-center justify-center py-12 rounded-[3rem] bg-gray-50 border-2 border-dashed border-gray-100 mb-8 overflow-hidden">
-              {result !== null ? (
-                <div className="text-center animate-in zoom-in duration-500">
-                  <div className={`text-8xl font-black mb-4 tracking-tighter ${result >= 7 ? 'text-green-500' : result >= 5 ? 'text-[#D4A017]' : 'text-red-500'}`}>
-                    {result}
-                  </div>
-                  <p className={`text-xs font-black uppercase tracking-widest ${result >= 7 ? 'text-green-600' : 'text-red-400'}`}>
-                    {result >= 7 ? '🎉 Aprovado!' : result >= 5 ? '⚠️ Em Recuperação' : '❌ Reprovado'}
-                  </p>
+          <div className="bg-white rounded-[3rem] p-10 shadow-2xl shadow-[#003366]/5 border border-gray-100 sticky top-32 flex flex-col items-center">
+            <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.4em] mb-10 text-center">Média Final</h3>
+            <div className="w-full flex flex-col items-center justify-center py-12 rounded-[2.5rem] bg-gray-50 border border-gray-100 mb-10">
+              <div className="text-center">
+                <div className={`text-8xl font-black tracking-tighter mb-2 ${result && result >= 7 ? 'text-green-500' : result && result >= 5 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  {result ? result.toFixed(2) : "0.00"}
                 </div>
-              ) : (
-                <div className="text-center px-6">
-                  <span className="text-5xl block mb-4 opacity-10">🧮</span>
-                  <p className="text-gray-300 font-bold italic text-[11px] leading-relaxed">
-                    Insira as notas nas seções ao lado e clique em calcular.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-8 border-t border-gray-100 space-y-4">
-              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
-                <span>Composição {activeCalc}</span>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#003366] opacity-60">Atualizado</p>
               </div>
-              <p className="text-[10px] text-gray-500 leading-relaxed font-medium">
-                {activeCalc === 'UC' && "Tutoria (2.8) + Teórica (4.2) + Prática (3.0)"}
-                {activeCalc === 'HabMed' && "N1: T(1.5)+PF(1)+PS(2.5) / N2: T(1.5)+PF(1)+PS(2.5)"}
-                {activeCalc === 'IESC' && "N1: T(1.5)+P(1)+E(1.5)+Po(1) / N2: T(1.5)+P(1)+E(1.5)+Po(1)"}
-                {activeCalc === 'UCCG' && "N1: Teórica (2.5) + Extensão (2.5) / N2: Teórica (2.5) + Extensão (2.5)"}
-              </p>
-              
-              {parseFloat(extraPoints.replace(',', '.')) > 0 && (
-                <div className="bg-yellow-50 p-3 rounded-xl border border-yellow-200 animate-pulse">
-                  <p className="text-[9px] text-[#D4A017] font-black uppercase text-center">+ {extraPoints} Pontos Extras Aplicados</p>
-                </div>
-              )}
+            </div>
+            <div className="w-full">
+              <label className={labelClass}>Teste de Progresso (TP)</label>
+              <input type="text" value={extraPoints} onChange={e => handleInputChange(e.target.value, setExtraPoints)} placeholder="0.0" className={`${inputClass} !text-base !p-3`} />
             </div>
           </div>
         </div>
       </div>
+
+      <button onClick={onBack} className="mt-16 mx-auto block text-gray-400 hover:text-[#003366] transition-colors text-[9px] font-black uppercase tracking-[0.4em]">
+        ← Voltar ao Início
+      </button>
     </div>
   );
 };
