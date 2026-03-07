@@ -252,7 +252,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
-  // --- NOVA FUNÇÃO: O PROCESSAMENTO DO LABORATÓRIO (LENDO 6 COLUNAS DO CSV DIRETAMENTE) ---
+  // --- NOVA FUNÇÃO: O PROCESSAMENTO DO LABORATÓRIO (LENDO AS 6 COLUNAS COMPLETAS E NOME FLEXÍVEL) ---
   const handleLabImport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!labCsvFile || !labImageFiles || labImageFiles.length === 0 || !labDisc || !labTitle || !labAuthor) {
@@ -272,7 +272,7 @@ const AdminView: React.FC<AdminViewProps> = ({
       const parsedLines = lines.slice(1).map(line => {
         const parts = line.split(';');
         return {
-          filename: parts[0]?.trim(), // '001' ou '001.jpg'
+          filename: parts[0]?.trim(), // ex: '001' ou '001.jpg'
           question: parts[1]?.trim(),
           answer: parts[2]?.trim(),
           identification: parts[3]?.trim() || 'N/A',
@@ -281,7 +281,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         };
       }).filter(l => l.filename && l.question && l.answer);
 
-      if (parsedLines.length === 0) throw new Error("CSV vazio ou fora do formato esperado de 6 colunas.");
+      if (parsedLines.length === 0) throw new Error("CSV vazio ou fora do formato esperado de 6 colunas (Imagem; Pergunta; Resposta; Dica1; Dica2; Dica3).");
 
       const finalQuestions: LabQuestion[] = [];
 
@@ -296,7 +296,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         });
 
         if (!imageFile) {
-          throw new Error(`A imagem referente a "${item.filename}" não foi encontrada. Certifique-se de que selecionou todas as imagens.`);
+          throw new Error(`A imagem referente a "${item.filename}" não foi encontrada. Certifique-se de que selecionou todas as imagens listadas no CSV.`);
         }
 
         const sRef = storageRef(storage, `lab_images/${labDisc}/${Date.now()}_${imageFile.name}`);
@@ -306,6 +306,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         finalQuestions.push({
           id: `lab_q_${Date.now()}_${i}`,
           imageUrl: imageUrl,
+          imageName: item.filename, // Salva o nome exato (ex: 001) no banco
           question: item.question,
           answer: item.answer,
           aiIdentification: item.identification,
@@ -344,7 +345,7 @@ const AdminView: React.FC<AdminViewProps> = ({
 
   const handleDeleteLab = async (simId: string) => {
     if (!confirm("Excluir este simulado e TODAS as imagens vinculadas a ele do servidor?")) return;
-    const sim = labSimulations.find(s => s.id === simId);
+    const sim = labSimulations?.find(s => s.id === simId);
     if (!sim) return;
 
     if (onRemoveLabSimulation) onRemoveLabSimulation(simId);
@@ -532,7 +533,7 @@ const AdminView: React.FC<AdminViewProps> = ({
           </div>
           <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Labs Virtuais</p>
-             <h4 className="text-5xl font-black text-[#D4A017]">{labSimulations.length}</h4>
+             <h4 className="text-5xl font-black text-[#D4A017]">{labSimulations?.length || 0}</h4>
           </div>
         </div>
       )}
@@ -543,9 +544,9 @@ const AdminView: React.FC<AdminViewProps> = ({
           <div className="lg:col-span-5 bg-white p-8 rounded-[2.5rem] border shadow-sm h-fit">
             <h3 className="text-xl font-black text-[#003366] mb-2 uppercase tracking-tighter">Criar Lab Virtual</h3>
             <p className="text-[10px] font-bold text-gray-500 mb-6 leading-relaxed bg-gray-50 p-3 rounded-xl border">
-              <b>DICA:</b> Gere o conteúdo no ChatGPT e salve como CSV.<br/><br/>
-              <b>Colunas do CSV (6 colunas):</b><br/>
-              1. Imagem (ex: 001.jpg ou 001)<br/>
+              <b>DICA:</b> Gere o conteúdo e salve como CSV.<br/><br/>
+              <b>Colunas exigidas (6 colunas):</b><br/>
+              1. Imagem (ex: 001.jpg ou apenas 001)<br/>
               2. Pergunta<br/>
               3. Resposta<br/>
               4. Identificação (Gerado por IA local)<br/>
@@ -563,7 +564,7 @@ const AdminView: React.FC<AdminViewProps> = ({
               <textarea placeholder="Descrição para os alunos..." value={labDesc} onChange={e => setLabDesc(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none resize-none" rows={2} disabled={isLabUploading}></textarea>
               
               <div className="bg-gray-50 p-4 rounded-xl border-2 border-dashed border-gray-200">
-                <label className="block text-[10px] font-black uppercase text-[#003366] mb-2">1. Selecione o arquivo CSV Completo</label>
+                <label className="block text-[10px] font-black uppercase text-[#003366] mb-2">1. Selecione o arquivo CSV (6 colunas)</label>
                 <input id="labCsvInput" type="file" accept=".csv" onChange={e => setLabCsvFile(e.target.files ? e.target.files[0] : null)} className="w-full text-xs text-gray-700 font-bold" required disabled={isLabUploading} />
               </div>
 
@@ -575,7 +576,7 @@ const AdminView: React.FC<AdminViewProps> = ({
 
               <button type="submit" disabled={isLabUploading || !labCsvFile || !labImageFiles} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50 flex justify-center items-center gap-2">
                 {isLabUploading ? <Loader2 size={16} className="animate-spin"/> : <Microscope size={16}/>}
-                {isLabUploading ? 'Fazendo Upload Seguro...' : 'Enviar Simulado Lab'}
+                {isLabUploading ? 'Enviando ao Servidor...' : 'Publicar Simulado Lab'}
               </button>
 
               {isLabUploading && (
@@ -598,7 +599,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </select>
              </div>
              <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
-                {labSimulations.filter(s => !discFilterLab || s.disciplineId === discFilterLab).map(s => (
+                {(labSimulations || []).filter(s => !discFilterLab || s.disciplineId === discFilterLab).map(s => (
                   <div key={s.id} className="p-5 bg-emerald-50/40 rounded-[1.5rem] border border-emerald-100 flex justify-between items-center group transition-all hover:border-red-100">
                     <div>
                       <h4 className="font-bold text-[#003366] text-sm mb-1">{s.title} <span className="text-gray-400 font-medium text-xs">({s.questions.length} peças)</span></h4>
@@ -609,7 +610,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </button>
                   </div>
                 ))}
-                {labSimulations.filter(s => !discFilterLab || s.disciplineId === discFilterLab).length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhum simulado de laboratório cadastrado.</p>}
+                {(labSimulations || []).filter(s => !discFilterLab || s.disciplineId === discFilterLab).length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhum simulado de laboratório cadastrado.</p>}
              </div>
           </div>
         </div>

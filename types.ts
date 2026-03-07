@@ -73,15 +73,16 @@ export interface ReferenceMaterial {
   url?: string;
 }
 
-// === NOVAS INTERFACES: LABORATÓRIO VIRTUAL COM IA ===
+// === NOVAS INTERFACES: LABORATÓRIO VIRTUAL ===
 export interface LabQuestion {
   id: string;
   imageUrl: string;          // Vai guardar o link da imagem no Firebase Storage
+  imageName?: string;        // NOVO: Guarda o nome original do arquivo (ex: 001) para mostrar na tela
   question: string;
   answer: string;
-  aiIdentification?: string; // Dica gerada pela IA
-  aiLocation?: string;       // Dica gerada pela IA
-  aiFunctions?: string;      // Dica gerada pela IA
+  aiIdentification?: string; // Dica 
+  aiLocation?: string;       // Dica 
+  aiFunctions?: string;      // Dica 
 }
 
 export interface LabSimulation {
