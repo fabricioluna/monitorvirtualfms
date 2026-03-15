@@ -102,8 +102,8 @@ const AdminView: React.FC<AdminViewProps> = ({
   // ESTADOS DO SIMULADO TEÓRICO (QUESTÕES)
   const [qDiscipline, setQDiscipline] = useState('');
   const [qTheme, setQTheme] = useState('');
-  const [qTitle, setQTitle] = useState(''); // NOVO: Título do simulado
-  const [qAuthor, setQAuthor] = useState(''); // NOVO: Autor do simulado
+  const [qTitle, setQTitle] = useState(''); 
+  const [qAuthor, setQAuthor] = useState(''); 
   const [qFile, setQFile] = useState<File | null>(null);
 
   const [osceDiscipline, setOsceDiscipline] = useState('');
@@ -307,6 +307,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         finalQuestions.push({
           id: `lab_q_${Date.now()}_${i}`,
           imageUrl: imageUrl,
+          imageName: item.filename, // Salva o nome exato (ex: 001) no banco
           question: item.question,
           answer: item.answer,
           aiIdentification: item.identification,
@@ -382,8 +383,8 @@ const AdminView: React.FC<AdminViewProps> = ({
             explanation: parts[6]?.trim() || '',
             tag: parts[7]?.trim() === 'true' ? 'Prática' : 'Teórica',
             isPractical: parts[7]?.trim() === 'true',
-            quizTitle: qTitle,   // SALVANDO O TÍTULO!
-            author: qAuthor || 'Equipe' // SALVANDO O AUTOR!
+            quizTitle: qTitle,   
+            author: qAuthor || 'Equipe' 
           };
         });
         onAddQuestions(newQs);
@@ -567,8 +568,10 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <option value="">Selecione a Disciplina...</option>
                 {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
               </select>
-              <input type="text" placeholder="Título (Ex: P1 Histologia)" value={labTitle} onChange={e => setLabTitle(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none" required disabled={isLabUploading} />
-              <input type="text" placeholder="Autor (Seu Nome)" value={labAuthor} onChange={e => setLabAuthor(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none" required disabled={isLabUploading} />
+              {/* LIMITE DE CARACTERES APLICADO AQUI: maxLength={50} */}
+              <input type="text" placeholder="Título (Ex: P1 Histologia)" value={labTitle} onChange={e => setLabTitle(e.target.value)} maxLength={50} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none" required disabled={isLabUploading} />
+              {/* LIMITE DE CARACTERES APLICADO AQUI: maxLength={30} */}
+              <input type="text" placeholder="Autor (Seu Nome)" value={labAuthor} onChange={e => setLabAuthor(e.target.value)} maxLength={30} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none" required disabled={isLabUploading} />
               <textarea placeholder="Descrição para os alunos..." value={labDesc} onChange={e => setLabDesc(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none resize-none" rows={2} disabled={isLabUploading}></textarea>
               
               <div className="bg-gray-50 p-4 rounded-xl border-2 border-dashed border-gray-200">
@@ -607,7 +610,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </select>
              </div>
              <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
-                {labSimulations.filter(s => !discFilterLab || s.disciplineId === discFilterLab).map(s => (
+                {(labSimulations || []).filter(s => !discFilterLab || s.disciplineId === discFilterLab).map(s => (
                   <div key={s.id} className="p-5 bg-emerald-50/40 rounded-[1.5rem] border border-emerald-100 flex justify-between items-center group transition-all hover:border-red-100">
                     <div>
                       <h4 className="font-bold text-[#003366] text-sm mb-1">{s.title} <span className="text-gray-400 font-medium text-xs">({s.questions.length} peças)</span></h4>
@@ -618,7 +621,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </button>
                   </div>
                 ))}
-                {labSimulations.filter(s => !discFilterLab || s.disciplineId === discFilterLab).length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhum simulado de laboratório cadastrado.</p>}
+                {(labSimulations || []).filter(s => !discFilterLab || s.disciplineId === discFilterLab).length === 0 && <p className="text-center py-10 text-gray-300 italic font-bold">Nenhum simulado de laboratório cadastrado.</p>}
              </div>
           </div>
         </div>
@@ -680,8 +683,10 @@ const AdminView: React.FC<AdminViewProps> = ({
                 {disciplines.find(d => d.id === qDiscipline)?.themes?.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
               
-              <input type="text" placeholder="Nome do Simulado (Ex: P1 Cárdio Fafá)" value={qTitle} onChange={e => setQTitle(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required />
-              <input type="text" placeholder="Autor (opcional)" value={qAuthor} onChange={e => setQAuthor(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" />
+              {/* LIMITE DE CARACTERES APLICADO AQUI: maxLength={50} */}
+              <input type="text" placeholder="Nome do Simulado (Ex: P1 Cárdio Fafá)" value={qTitle} onChange={e => setQTitle(e.target.value)} maxLength={50} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required />
+              {/* LIMITE DE CARACTERES APLICADO AQUI: maxLength={30} */}
+              <input type="text" placeholder="Autor (opcional)" value={qAuthor} onChange={e => setQAuthor(e.target.value)} maxLength={30} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" />
 
               <input type="file" accept=".csv" onChange={e => setQFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" required/>
               <button type="submit" disabled={!qFile} className="w-full bg-[#003366] text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#D4A017] transition-all disabled:opacity-50">Subir Simulado 🚀</button>
