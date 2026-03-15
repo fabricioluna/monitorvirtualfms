@@ -23,6 +23,7 @@ interface AdminViewProps {
   onRemoveLabSimulation?: (id: string) => void;
   onRemoveQuestion: (id: string) => void;
   onRemoveOsceStation: (id: string) => void;
+  onRemoveQuiz: (quizTitle: string, disciplineId?: string) => void; // NOVO: Prop para remover simulado inteiro
   onClearDatabase: () => void;
   onClearResults: () => void;
   onClearQuestions: (disciplineId?: string) => void;
@@ -68,6 +69,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   onRemoveQuestion,
   onRemoveOsceStation,
   onRemoveLabSimulation,
+  onRemoveQuiz, // NOVO
   onClearDatabase,
   onClearResults,
   onClearQuestions,
@@ -90,6 +92,7 @@ const AdminView: React.FC<AdminViewProps> = ({
 
   const [discFilter, setDiscFilter] = useState(''); 
   const [themeFilter, setThemeFilter] = useState('');
+  const [quizFilter, setQuizFilter] = useState(''); // NOVO: Filtro para o simulado exato
   
   const [discFilterOsce, setDiscFilterOsce] = useState(''); 
   const [themeFilterOsce, setThemeFilterOsce] = useState(''); 
@@ -478,7 +481,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   // MÁQUINA DE ANALYTICS AVANÇADA (PROCESSAMENTO DOS DADOS COM FILTROS)
   // =========================================================================
   
-  // Títulos disponíveis para o filtro atual
+  // Títulos disponíveis para o filtro atual de estatísticas
   const availableStatTitles = useMemo(() => {
     const titles = new Set<string>();
     quizResults.forEach(qr => {
@@ -491,8 +494,19 @@ const AdminView: React.FC<AdminViewProps> = ({
     return Array.from(titles);
   }, [quizResults, statsDiscFilter, statsTypeFilter]);
 
+  // Lista única de nomes de Simulados Teóricos (para a aba Questões)
+  const uniqueQuizzes = useMemo(() => {
+    const titles = new Set<string>();
+    questions.forEach(q => {
+      if (q.quizTitle && (!discFilter || q.disciplineId === discFilter)) {
+        titles.add(q.quizTitle);
+      }
+    });
+    return Array.from(titles).sort();
+  }, [questions, discFilter]);
+
+
   const analytics = useMemo(() => {
-    // 1. APLICAR OS FILTROS AOS RESULTADOS GERAIS
     const filteredResults = quizResults.filter(qr => {
       if (statsDiscFilter && qr.discipline !== statsDiscFilter) return false;
       if (statsTypeFilter && qr.type !== statsTypeFilter) return false;
@@ -509,7 +523,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     const questionStats: Record<string, { misses: number, total: number }> = {};
 
     filteredResults.forEach(qr => {
-      // Agrega os volumes
       totalQuestionsAnswered += (qr.total || 0);
       totalCorrectAnswers += (qr.score || 0);
 
@@ -518,16 +531,13 @@ const AdminView: React.FC<AdminViewProps> = ({
         timeEntriesCount++;
       }
 
-      // Mapeia os temas e a "Lista Negra"
       if (qr.details) {
         qr.details.forEach(d => {
-          // Desempenho por Tema
           const themeName = d.theme || 'Desconhecido';
           if (!themeStats[themeName]) themeStats[themeName] = { correct: 0, total: 0 };
           themeStats[themeName].total++;
           if (d.isCorrect) themeStats[themeName].correct++;
 
-          // Ranking de Dificuldade (Lista Negra)
           if (!questionStats[d.questionId]) questionStats[d.questionId] = { misses: 0, total: 0 };
           questionStats[d.questionId].total++;
           if (!d.isCorrect) questionStats[d.questionId].misses++;
@@ -539,19 +549,15 @@ const AdminView: React.FC<AdminViewProps> = ({
     const avgTimeSeconds = timeEntriesCount > 0 ? Math.round(totalTimeSpent / timeEntriesCount) : 0;
     const avgTimeFormatted = `${Math.floor(avgTimeSeconds / 60)}m ${avgTimeSeconds % 60}s`;
 
-    // Converte os stats de temas para array e ordena do melhor para o pior
     const themePerformance = Object.keys(themeStats).map(t => ({
       theme: t,
       accuracy: Math.round((themeStats[t].correct / themeStats[t].total) * 100),
       total: themeStats[t].total
     })).sort((a, b) => b.accuracy - a.accuracy);
 
-    // Converte os stats de questões (Lista Negra) e puxa o texto real da questão
     const hardestQuestions = Object.keys(questionStats).map(qid => {
-      // Procura primeiro nas questões teóricas
       let qText = questions.find(q => q.id === qid)?.q;
       
-      // Se não achar, procura nas do laboratório
       if (!qText) {
          for (const sim of labSimulations || []) {
             const labQ = sim.questions.find(lq => lq.id === qid);
@@ -570,9 +576,9 @@ const AdminView: React.FC<AdminViewProps> = ({
         errorRate: Math.round((questionStats[qid].misses / questionStats[qid].total) * 100)
       };
     })
-    .filter(x => x.misses > 0) // Só mostra as que alguém errou
-    .sort((a, b) => b.errorRate - a.errorRate) // Ordena da maior taxa de erro para a menor
-    .slice(0, 10); // Pega apenas o Top 10 Piores
+    .filter(x => x.misses > 0) 
+    .sort((a, b) => b.errorRate - a.errorRate) 
+    .slice(0, 10); 
 
     return { totalSimulations: filteredResults.length, totalQuestionsAnswered, globalAccuracy, avgTimeFormatted, themePerformance, hardestQuestions };
   }, [quizResults, questions, labSimulations, statsDiscFilter, statsTypeFilter, statsQuizTitleFilter]);
@@ -639,7 +645,6 @@ const AdminView: React.FC<AdminViewProps> = ({
       {activeTab === 'stats' && (
         <div className="animate-in fade-in duration-500 space-y-8">
           
-          {/* BARRA DE FILTROS DO DASHBOARD */}
           <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Filtrar por Disciplina</label>
@@ -668,7 +673,6 @@ const AdminView: React.FC<AdminViewProps> = ({
             </div>
           </div>
 
-          {/* BLOCO SUPERIOR: 4 CARDS DE RESUMO (Que reagem aos filtros) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-[#003366] p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
                <div className="absolute -right-4 -bottom-4 text-6xl opacity-10">📝</div>
@@ -692,10 +696,7 @@ const AdminView: React.FC<AdminViewProps> = ({
             </div>
           </div>
 
-          {/* BLOCO INFERIOR: GRÁFICOS E LISTA NEGRA */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
-            {/* DESEMPENHO POR EIXO TEMÁTICO */}
             <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
               <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter mb-6 border-b pb-4">
                 Desempenho por Tema
@@ -729,7 +730,6 @@ const AdminView: React.FC<AdminViewProps> = ({
               )}
             </div>
 
-            {/* LISTA NEGRA: TOP 10 QUESTÕES MAIS ERRADAS */}
             <div className="bg-red-50 p-8 rounded-[2.5rem] border border-red-100 shadow-sm">
               <h3 className="text-xl font-black text-red-800 uppercase tracking-tighter mb-6 border-b border-red-200 pb-4">
                 Top 10: Maior Taxa de Erro
@@ -758,7 +758,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
               )}
             </div>
-
           </div>
         </div>
       )}
@@ -784,9 +783,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <option value="">Selecione a Disciplina...</option>
                 {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
               </select>
-              {/* LIMITE DE CARACTERES APLICADO AQUI: maxLength={50} */}
               <input type="text" placeholder="Título (Ex: P1 Histologia)" value={labTitle} onChange={e => setLabTitle(e.target.value)} maxLength={50} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none" required disabled={isLabUploading} />
-              {/* LIMITE DE CARACTERES APLICADO AQUI: maxLength={30} */}
               <input type="text" placeholder="Autor (Seu Nome)" value={labAuthor} onChange={e => setLabAuthor(e.target.value)} maxLength={30} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none" required disabled={isLabUploading} />
               <textarea placeholder="Descrição para os alunos..." value={labDesc} onChange={e => setLabDesc(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none resize-none" rows={2} disabled={isLabUploading}></textarea>
               
@@ -899,9 +896,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 {disciplines.find(d => d.id === qDiscipline)?.themes?.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
               
-              {/* LIMITE DE CARACTERES APLICADO AQUI: maxLength={50} */}
               <input type="text" placeholder="Nome do Simulado (Ex: P1 Cárdio Fafá)" value={qTitle} onChange={e => setQTitle(e.target.value)} maxLength={50} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" required />
-              {/* LIMITE DE CARACTERES APLICADO AQUI: maxLength={30} */}
               <input type="text" placeholder="Autor (opcional)" value={qAuthor} onChange={e => setQAuthor(e.target.value)} maxLength={30} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#003366]" />
 
               <input type="file" accept=".csv" onChange={e => setQFile(e.target.files ? e.target.files[0] : null)} className="w-full text-[10px] text-gray-400 font-black uppercase p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200" required/>
@@ -926,19 +921,44 @@ const AdminView: React.FC<AdminViewProps> = ({
                     Apagar {discFilter ? 'da Disciplina' : 'Tudo'} 🗑️
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                    <select value={discFilter} onChange={e => { setDiscFilter(e.target.value); setThemeFilter(''); }} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]">
+                
+                {/* FILTROS E BOTÃO DE EXCLUIR SIMULADO INTEIRO */}
+                <div className="flex flex-wrap gap-2 items-center">
+                    <select value={discFilter} onChange={e => { setDiscFilter(e.target.value); setThemeFilter(''); setQuizFilter(''); }} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366]">
                       <option value="">Todas Disciplinas</option>
                       {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
                     </select>
+                    
                     <select value={themeFilter} onChange={e => setThemeFilter(e.target.value)} disabled={!discFilter} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366] disabled:opacity-50 disabled:cursor-not-allowed">
                       <option value="">Todos os Temas</option>
                       {discFilter && disciplines.find(d => d.id === discFilter)?.themes?.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
+                    
+                    <select value={quizFilter} onChange={e => setQuizFilter(e.target.value)} className="p-3 bg-gray-50 rounded-xl text-[10px] font-black uppercase outline-none border-2 border-transparent focus:border-[#003366] max-w-[200px] truncate">
+                      <option value="">Todos os Simulados</option>
+                      {uniqueQuizzes.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+
+                    {quizFilter && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`⚠️ Tem a certeza que deseja APAGAR COMPLETAMENTE o simulado "${quizFilter}"?\n\nEsta ação irá remover todas as questões ligadas a este simulado do banco de dados.`)) {
+                            onRemoveQuiz(quizFilter, discFilter || undefined);
+                            setQuizFilter('');
+                            alert(`✅ Simulado "${quizFilter}" apagado com sucesso!`);
+                          }
+                        }}
+                        className="bg-red-500 text-white px-3 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 shadow-md transition-all flex items-center gap-1"
+                        title="Apagar este simulado por completo"
+                      >
+                        <Trash2 size={14}/> Excluir Simulado
+                      </button>
+                    )}
                 </div>
              </div>
+             
              <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
-                {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter)).map(q => (
+                {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter) && (!quizFilter || q.quizTitle === quizFilter)).map(q => (
                   <div key={q.id} className="p-4 bg-gray-50 rounded-2xl border flex justify-between items-start gap-4 group hover:border-red-100 transition-all">
                     <div>
                       <p className="text-xs font-bold text-gray-700 leading-snug">{q.q}</p>
@@ -951,7 +971,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                     <button onClick={() => confirm("Excluir esta questão?") && onRemoveQuestion(q.id)} className="text-red-300 hover:text-red-500 transition-colors pt-1"><Trash2 size={16}/></button>
                   </div>
                 ))}
-                {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter)).length === 0 && (
+                {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter) && (!quizFilter || q.quizTitle === quizFilter)).length === 0 && (
                   <p className="text-center py-10 text-gray-300 italic font-bold">Nenhuma questão encontrada para este filtro.</p>
                 )}
              </div>

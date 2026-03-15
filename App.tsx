@@ -13,7 +13,6 @@ import CalculatorsView from './views/CalculatorsView.tsx';
 import CareerQuiz from './components/CareerQuiz.tsx';
 import ReferencesView from './views/ReferencesView.tsx';
 import ShareMaterialView from './views/ShareMaterialView.tsx';
-// IMPORTAÇÃO DAS NOVAS TELAS DE LABORATÓRIO 
 import LabListView from './views/LabListView.tsx';
 import LabQuizView from './views/LabQuizView.tsx';
 
@@ -21,7 +20,7 @@ import { ViewState, Summary, Question, SimulationInfo, OsceStation, QuizResult, 
 import { INITIAL_QUESTIONS, SIMULATIONS } from './constants.tsx';
 import { db, ref, onValue, push, remove, set } from './firebase.ts';
 
-const APP_VERSION = "6.1.0 - Analytics Integrado";
+const APP_VERSION = "6.2.0 - Gestão de Simulados";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
@@ -44,7 +43,6 @@ const App: React.FC = () => {
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [labSimulations, setLabSimulations] = useState<LabSimulation[]>([]); 
 
-  // Rolar para o topo ao mudar de tela
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentView]);
@@ -76,7 +74,6 @@ const App: React.FC = () => {
       }
     });
 
-    // LISTA DE COLEÇÕES DO BANCO REALTIME
     const collections = [
       { path: 'questions', setter: (data: any) => setQuestions([...INITIAL_QUESTIONS, ...Object.keys(data).filter(k => data[k]).map(k => ({ ...data[k], firebaseId: k }))]) },
       { path: 'summaries', setter: (data: any) => setSummaries(Object.keys(data).filter(k => data[k]).map(k => ({ ...data[k], firebaseId: k }))) },
@@ -103,10 +100,8 @@ const App: React.FC = () => {
     setTimeout(() => setIsLoading(false), 2000);
   }, []);
 
-  // --- FUNÇÕES DE NAVEGAÇÃO INTELIGENTE ---
   const handleNavigate = (view: ViewState) => {
     if (view === currentView) return; 
-    
     if (view === 'home') {
       setSelectedDisciplineId(null);
       setViewHistory(['home']);
@@ -119,7 +114,6 @@ const App: React.FC = () => {
   const handleBack = () => {
     setViewHistory(prev => {
       if (prev.length <= 1) return prev; 
-      
       const newHistory = [...prev];
       newHistory.pop(); 
       const prevView = newHistory[newHistory.length - 1]; 
@@ -132,7 +126,6 @@ const App: React.FC = () => {
     });
   };
 
-  // --- FUNÇÕES DE ADMINISTRAÇÃO ---
   const handleAddTheme = (disciplineId: string, themeName: string) => {
     const disc = disciplines.find(d => d.id === disciplineId);
     if (!disc) return;
@@ -208,7 +201,6 @@ const App: React.FC = () => {
           />
         )}
         
-        {/* RESULTADOS DA TEORIA AGORA ENVIADOS PARA O ANALYTICS */}
         {currentView === 'quiz' && (
           <QuizView 
             questions={quizFilteredQuestions} 
@@ -250,7 +242,6 @@ const App: React.FC = () => {
           />
         )}
         
-        {/* RESULTADOS DO OSCE REGISTRADOS NO ANALYTICS */}
         {currentView === 'osce-quiz' && currentOsceStation && (
           <OsceView 
             station={currentOsceStation} 
@@ -284,7 +275,6 @@ const App: React.FC = () => {
 
         {currentView === 'calculators' && <CalculatorsView onBack={handleBack} />}
         
-        {/* NAVEGAÇÃO DO NOVO LABORATÓRIO VIRTUAL */}
         {currentView === 'lab-list' && selectedDisciplineId && (
           <LabListView 
             disciplineId={selectedDisciplineId} 
@@ -343,6 +333,18 @@ const App: React.FC = () => {
 
             onRemoveQuestion={(id) => { const q = questions.find(item => item.id === id); if (db && q?.firebaseId) remove(ref(db, `questions/${q.firebaseId}`)); }}
             onRemoveOsceStation={(id) => { const o = osceStations.find(item => item.id === id); if (db && o?.firebaseId) remove(ref(db, `osce/${o.firebaseId}`)); }}
+            
+            // NOVO: Exclusão global de um Simulado Teórico inteiro
+            onRemoveQuiz={(quizTitle, discId) => {
+              if (db) {
+                questions.forEach(q => {
+                  if (q.quizTitle === quizTitle && (!discId || q.disciplineId === discId)) {
+                    if (q.firebaseId) remove(ref(db, `questions/${q.firebaseId}`));
+                  }
+                });
+              }
+            }}
+
             onClearDatabase={() => {
               if (db) {
                 remove(ref(db, 'questions'));
