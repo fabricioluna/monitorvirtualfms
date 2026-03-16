@@ -6,7 +6,6 @@ interface QuizViewProps {
   questions: Question[];
   discipline: SimulationInfo;
   onBack: () => void;
-  // Agora temos a gravação global (quando ele acaba) e a Parcial (gota a gota)
   onSaveResult: (score: number, total: number, quizTitle?: string, type?: 'teorico' | 'laboratorio' | 'osce', timeSpent?: number, details?: QuizDetail[]) => void;
 }
 
@@ -16,27 +15,50 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
   const [themeStats, setThemeStats] = useState<{theme: string, correct: number, total: number}[]>([]);
   const [startTime] = useState(Date.now()); 
 
+  // ESTADOS DO SALVAMENTO (localStorage)
+  const storageKey = `quiz_progress_${discipline.title.replace(/\s+/g, '_')}`;
+  const [savedState, setSavedState] = useState<any>(null);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [quizStarted, setQuizStarted] = useState(false);
+
+  useEffect(() => {
+    // Ao abrir a tela, verifica se há progresso salvo
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      setSavedState(JSON.parse(saved));
+      setShowPrompt(true);
+    } else {
+      setQuizStarted(true);
+    }
+  }, [storageKey]);
+
+  const handleContinue = () => {
+    setShowPrompt(false);
+    setQuizStarted(true);
+  };
+
+  const handleRestart = () => {
+    localStorage.removeItem(storageKey);
+    setSavedState(null);
+    setShowPrompt(false);
+    setQuizStarted(true);
+  };
+
   // GRAVAÇÃO PARCIAL (GOTA A GOTA)
-  // Quando o aluno clica numa alternativa, disparamos um pacote para o Firebase de imediato.
-  // Assim, mesmo que ele saia do ecrã, o resultado daquela questão já está na base de dados!
   const handlePartialAnswer = (questionId: string, isCorrect: boolean, theme: string) => {
     const uniqueTitles = Array.from(new Set(questions.map(q => q.quizTitle).filter(Boolean)));
     const quizName = uniqueTitles.length === 1 ? uniqueTitles[0] : 'Simulado Misto';
 
-    // Grava UM ÚNICO PONTO no Firebase em tempo real
     onSaveResult(
-      isCorrect ? 1 : 0, // Score parcial 
-      1,                 // Total parcial avaliado 
+      isCorrect ? 1 : 0, 
+      1,                 
       quizName, 
       'teorico', 
-      0,                 // Tempo parcial ignorado (senão estragaria a média geral)
+      0,                 
       [{ questionId, isCorrect, theme }]
     );
   };
 
-  // QUANDO ELE FINALIZA OFICIALMENTE PARA VER O RELATÓRIO
-  // Como já fomos gravando gota a gota, não precisamos gravar os resultados de novo no Firebase (senão duplicaria!).
-  // O handleFinish agora serve só para fechar o ecrã e mostrar a taça de campeão para ele.
   const handleFinish = (score: number, answers: Record<string, number>) => {
     setFinalScore(score);
     
@@ -49,6 +71,9 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
     
     setThemeStats(stats);
     setIsFinished(true);
+    
+    // Limpa o salvamento pois o simulado foi concluído!
+    localStorage.removeItem(storageKey);
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -73,7 +98,7 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
   const advice = getPerformanceAdvice();
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 relative">
       <div className="mb-8 flex justify-between items-center">
         <button onClick={onBack} className="text-[#003366] font-bold hover:text-[#D4A017] transition-colors">← Voltar</button>
         <div className="text-right">
@@ -82,13 +107,40 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
         </div>
       </div>
 
-      {!isFinished ? (
+      {/* TELA DE PROMPT (Continuar ou Recomeçar) */}
+      {showPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#003366]/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl max-w-lg w-full animate-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-4xl mb-6 mx-auto">💾</div>
+            <h3 className="text-2xl font-black text-[#003366] mb-4 tracking-tight text-center">Simulado em Andamento</h3>
+            <p className="text-gray-500 mb-8 leading-relaxed text-center font-medium">
+              Detectamos que você não finalizou este simulado na sua última sessão. Deseja continuar exatamente de onde parou ou prefere começar do zero?
+            </p>
+            <div className="flex flex-col gap-3">
+              <button onClick={handleContinue} className="w-full bg-[#003366] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-[#D4A017] hover:text-[#003366] transition-all shadow-xl">
+                Continuar de onde parei
+              </button>
+              <button onClick={handleRestart} className="w-full bg-white border-2 border-gray-100 text-gray-400 py-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:border-red-500 hover:text-red-500 transition-all">
+                Começar do Zero
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QUIZ INTERATIVO */}
+      {quizStarted && !isFinished && (
         <InteractiveQuiz 
           questions={questions} 
           onFinish={(score, ans) => handleFinish(score, ans)} 
-          onAnswerQuestion={handlePartialAnswer} // Injeta a função gota-a-gota aqui!
+          onAnswerQuestion={handlePartialAnswer}
+          storageKey={storageKey}
+          resumeState={savedState}
         />
-      ) : (
+      )}
+
+      {/* RELATÓRIO FINAL */}
+      {isFinished && (
         <div className="space-y-8 animate-in zoom-in duration-500 pb-20">
           <div className="bg-white p-12 md:p-16 rounded-[3rem] shadow-2xl text-center border border-gray-100">
             <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">🏆</div>

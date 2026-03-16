@@ -1,34 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Question } from '../types';
 import { ArrowLeft, ArrowRight, Scissors } from 'lucide-react';
 
 interface InteractiveQuizProps {
   questions: Question[];
   onFinish: (score: number, answers: Record<string, number>) => void;
-  // NOVO: Evento disparado no EXATO MOMENTO em que o aluno responde
   onAnswerQuestion?: (questionId: string, isCorrect: boolean, theme: string) => void;
+  storageKey: string;
+  resumeState?: any;
 }
 
-const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, onAnswerQuestion }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [score, setScore] = useState(0);
+const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, onAnswerQuestion, storageKey, resumeState }) => {
+  // 1. INICIALIZAÇÃO DOS ESTADOS (Puxando do save ou começando do zero)
+  const [currentIndex, setCurrentIndex] = useState(resumeState?.currentIndex || 0);
+  const [answers, setAnswers] = useState<Record<string, number>>(resumeState?.answers || {});
+  const [score, setScore] = useState(resumeState?.score || 0);
+  const [draftAnswers, setDraftAnswers] = useState<Record<string, number>>(resumeState?.draftAnswers || {});
+  const [eliminatedOptions, setEliminatedOptions] = useState<Record<string, number[]>>(resumeState?.eliminatedOptions || {});
 
-  // NOVOS ESTADOS: Para rascunho de seleção e cortes de tesoura
-  const [draftAnswers, setDraftAnswers] = useState<Record<string, number>>({});
-  const [eliminatedOptions, setEliminatedOptions] = useState<Record<string, number[]>>({});
+  // 2. AUTO-SAVE INVISÍVEL (Sempre que uma destas variáveis muda, ele guarda no navegador)
+  useEffect(() => {
+    const stateToSave = {
+      currentIndex,
+      answers,
+      score,
+      draftAnswers,
+      eliminatedOptions
+    };
+    localStorage.setItem(storageKey, JSON.stringify(stateToSave));
+  }, [currentIndex, answers, score, draftAnswers, eliminatedOptions, storageKey]);
 
-  // Função para apenas SELECIONAR visualmente (sem confirmar)
+  // 3. FUNÇÃO PARA SELECIONAR A ALTERNATIVA (Apenas pinta de azul, não confirma)
   const handleSelectOption = (questionId: string, optionIndex: number) => {
-    if (answers[questionId] !== undefined) return; // Já respondeu oficialmente
-    if (eliminatedOptions[questionId]?.includes(optionIndex)) return; // Está cortada
+    if (answers[questionId] !== undefined) return; 
+    if (eliminatedOptions[questionId]?.includes(optionIndex)) return; 
 
     setDraftAnswers(prev => ({ ...prev, [questionId]: optionIndex }));
   };
 
-  // Função para CORTAR/RESTAURAR alternativa com a tesoura
+  // 4. FUNÇÃO DA TESOURA (Riscar alternativa errada)
   const toggleEliminateOption = (questionId: string, optionIndex: number) => {
-    if (answers[questionId] !== undefined) return; // Já respondeu oficialmente
+    if (answers[questionId] !== undefined) return; 
 
     setEliminatedOptions(prev => {
       const currentEliminated = prev[questionId] || [];
@@ -44,7 +56,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
       return { ...prev, [questionId]: newEliminated };
     });
 
-    // Se ele cortou a opção que estava selecionada como rascunho, limpamos o rascunho
+    // Se ele cortar a que estava selecionada de azul, limpamos a seleção
     if (draftAnswers[questionId] === optionIndex) {
       setDraftAnswers(prev => {
         const newDrafts = { ...prev };
@@ -54,27 +66,25 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
     }
   };
 
-  // Função para CONFIRMAR a resposta selecionada (Grava no Firebase e avalia)
+  // 5. FUNÇÃO PARA CONFIRMAR A RESPOSTA OFICIALMENTE (Grava no Firebase e mostra o gabarito)
   const confirmAnswer = (questionId: string, correctIndex: number) => {
     const selectedOpt = draftAnswers[questionId];
     if (selectedOpt === undefined || answers[questionId] !== undefined) return;
 
-    // Salva na lista oficial de respondidas
     setAnswers(prev => ({ ...prev, [questionId]: selectedOpt }));
     
     const isCorrect = selectedOpt === correctIndex;
-    
     if (isCorrect) {
       setScore(prev => prev + 1);
     }
 
-    // AVISAR A BASE DE DADOS IMEDIATAMENTE ("Gota a Gota")
     if (onAnswerQuestion) {
       const q = questions.find(x => x.id === questionId);
       if (q) onAnswerQuestion(questionId, isCorrect, q.theme);
     }
   };
 
+  // 6. NAVEGAÇÃO ENTRE QUESTÕES
   const nextQuestion = () => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
@@ -89,6 +99,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
     }
   };
 
+  // 7. VARIÁVEIS DE CONTROLE DA TELA
   const q = questions[currentIndex];
   const userAnswer = answers[q.id];
   const isAnswered = userAnswer !== undefined;
@@ -100,7 +111,8 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
 
   return (
     <div className="space-y-8 pb-40">
-      {/* Progress Bar */}
+      
+      {/* --- BARRA DE PROGRESSO SUPERIOR --- */}
       <div className="sticky top-20 z-40 bg-[#f4f7f6]/80 backdrop-blur-md py-6 border-b border-gray-200/50">
         <div className="flex justify-between items-end mb-3 px-2">
           <div className="flex flex-col">
@@ -120,7 +132,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
         </div>
       </div>
 
-      {/* Main Question Card */}
+      {/* --- CARD PRINCIPAL DA QUESTÃO --- */}
       <div className="animate-in fade-in slide-in-from-right-4 duration-500">
         <div 
           className={`bg-white rounded-[2.5rem] shadow-xl transition-all duration-700 overflow-hidden border-2
@@ -129,6 +141,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               : 'border-transparent'}
           `}
         >
+          {/* IMAGEM DA QUESTÃO (Se existir) */}
           {q.image && (
             <div className="w-full h-64 md:h-96 bg-gray-100 border-b overflow-hidden group">
               <img 
@@ -140,6 +153,8 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
           )}
 
           <div className="p-8 md:p-12">
+            
+            {/* BADGES DA QUESTÃO */}
             <div className="flex flex-wrap items-center gap-3 mb-8">
               <span className="bg-[#003366] text-white px-4 py-1.5 rounded-full font-black text-xs uppercase tracking-widest">
                 Questão {currentIndex + 1}
@@ -149,10 +164,12 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               </span>
             </div>
             
+            {/* TEXTO DA PERGUNTA */}
             <h4 className="text-xl md:text-2xl font-bold text-[#003366] mb-10 leading-[1.6] tracking-tight">
               {q.q}
             </h4>
 
+            {/* LISTA DE ALTERNATIVAS A, B, C, D */}
             <div className="grid gap-4">
               {q.options.map((opt, optIdx) => {
                 const isEliminated = eliminatedOptions[q.id]?.includes(optIdx);
@@ -164,34 +181,29 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
 
                 if (!isAnswered) {
                   if (isEliminated) {
-                    // CORTADA
                     wrapperClass += "border-gray-200 bg-gray-50 opacity-50";
                     letterClass += "border-gray-300 text-gray-400 bg-gray-200";
                     textClass += "text-gray-400 line-through";
                   } else if (isDrafted) {
-                    // SELECIONADA (RASCUNHO)
                     wrapperClass += "border-[#003366] bg-blue-50/50 ring-4 ring-blue-50 shadow-md";
                     letterClass += "bg-[#003366] border-[#003366] text-white shadow-lg";
                     textClass += "text-[#003366] font-medium";
                   } else {
-                    // NORMAL (PENDENTE)
                     wrapperClass += "border-gray-100 bg-white hover:border-[#D4A017] hover:shadow-md group";
                     letterClass += "border-gray-200 text-gray-400 group-hover:border-[#D4A017] group-hover:bg-[#D4A017] group-hover:text-white";
                     textClass += "text-gray-700";
                   }
                 } else {
+                  // MODO RESPONDIDO (GABARITO REVELADO)
                   if (optIdx === q.answer) {
-                    // GABARITO CORRETO
                     wrapperClass += "border-green-500 bg-green-50 ring-4 ring-green-100";
                     letterClass += "bg-green-500 border-green-500 text-white shadow-lg";
                     textClass += "text-green-900 font-bold";
                   } else if (optIdx === userAnswer) {
-                    // ERROU NESTA
                     wrapperClass += "border-red-500 bg-red-50";
                     letterClass += "bg-red-500 border-red-500 text-white";
                     textClass += "text-red-900";
                   } else {
-                    // OUTRAS QUANDO JÁ ESTÁ RESPONDIDO
                     wrapperClass += "border-gray-100 bg-gray-50 opacity-40";
                     letterClass += "border-gray-200 text-gray-300 bg-gray-100";
                     textClass += "text-gray-400";
@@ -211,6 +223,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
                       <span className={textClass}>{opt}</span>
                     </button>
                     
+                    {/* ÍCONE DE TESOURA */}
                     {!isAnswered && (
                       <div className="flex items-center pr-4">
                         <button
@@ -231,7 +244,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               })}
             </div>
 
-            {/* BOTÃO DE CONFIRMAR RESPOSTA */}
+            {/* BOTÃO DE CONFIRMAR RESPOSTA (Aparece só quando algo foi selecionado de azul) */}
             {!isAnswered && draftAnswers[q.id] !== undefined && (
               <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <button
@@ -243,7 +256,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               </div>
             )}
 
-            {/* FEEDBACK APÓS CONFIRMAR */}
+            {/* CAIXA DE EXPLICAÇÃO (Aparece só depois de Confirmar) */}
             {isAnswered && (
               <div className={`mt-10 p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-700 border
                 ${isCorrect ? 'bg-green-50 border-green-200 text-green-900' : 'bg-red-50 border-red-200 text-red-900'}
@@ -269,7 +282,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
           </div>
         </div>
 
-        {/* Local Navigation Controls */}
+        {/* --- BOTÕES ANTERIOR E PRÓXIMA --- */}
         <div className="mt-8 flex justify-between items-center gap-4">
           <button 
             onClick={prevQuestion}
@@ -284,7 +297,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
           {!isLastQuestion ? (
             <button 
               onClick={nextQuestion}
-              disabled={!isAnswered} // Continua bloqueado até ele CONFIRMAR a resposta
+              disabled={!isAnswered} // Continua bloqueado até ele CONFIRMAR a resposta atual
               className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all
                 ${!isAnswered ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-[#003366] text-white hover:bg-[#D4A017] hover:text-[#003366] shadow-lg'}
               `}
@@ -297,9 +310,10 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
         </div>
       </div>
 
-      {/* Floating Score Bar */}
+      {/* --- BARRA FLUTUANTE DE PONTUAÇÃO (Em baixo) --- */}
       <div className="fixed bottom-8 left-0 right-0 z-50 px-4 pointer-events-none">
         <div className="max-w-md mx-auto bg-[#003366] text-white p-5 rounded-[2rem] shadow-2xl flex items-center justify-between border-2 border-[#D4A017] pointer-events-auto">
+          
           <div className="flex items-center space-x-5 pl-2">
             <div className="bg-white/10 p-3 rounded-2xl">
               <span className="text-2xl">📊</span>
@@ -325,6 +339,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               <div className="pr-4 text-right">
                 <p className="text-[8px] font-black uppercase tracking-widest text-orange-300">{isCompleted ? 'Finalize na última' : 'Responda todas'}</p>
                 <div className="flex gap-1 mt-1 justify-end">
+                   {/* PONTINHOS MARCADORES DE PROGRESSO */}
                    {questions.map((quest, i) => (
                      <div 
                       key={i} 
@@ -336,6 +351,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               </div>
             )}
           </div>
+
         </div>
       </div>
     </div>
