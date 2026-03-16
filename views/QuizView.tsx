@@ -10,43 +10,33 @@ interface QuizViewProps {
 }
 
 const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSaveResult }) => {
+  // Chaves do localStorage
+  const storageKey = `quiz_progress_${discipline.title.replace(/\s+/g, '_')}`;
+  const questionsKey = `quiz_questions_${discipline.title.replace(/\s+/g, '_')}`;
+
+  // Lista de questões ativas (pode ser total ou só as erradas)
+  const [activeQuestions, setActiveQuestions] = useState<Question[]>(questions);
+  const [quizKey, setQuizKey] = useState(0); // Usada para "resetar" o InteractiveQuiz
+  const [userAnswers, setUserAnswers] = useState<Record<string, number>>({});
+
   const [isFinished, setIsFinished] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [themeStats, setThemeStats] = useState<{theme: string, correct: number, total: number}[]>([]);
-  const [startTime] = useState(Date.now()); 
-
-  // ESTADOS DO SALVAMENTO (localStorage)
-  const storageKey = `quiz_progress_${discipline.title.replace(/\s+/g, '_')}`;
-  const [savedState, setSavedState] = useState<any>(null);
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [quizStarted, setQuizStarted] = useState(false);
-
-  useEffect(() => {
-    // Ao abrir a tela, verifica se há progresso salvo
+  
+  // Puxa o estado salvo (se houver) apenas na montagem inicial
+  const [savedState, setSavedState] = useState<any>(() => {
     const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      setSavedState(JSON.parse(saved));
-      setShowPrompt(true);
-    } else {
-      setQuizStarted(true);
-    }
-  }, [storageKey]);
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  const handleContinue = () => {
-    setShowPrompt(false);
-    setQuizStarted(true);
-  };
-
-  const handleRestart = () => {
-    localStorage.removeItem(storageKey);
-    setSavedState(null);
-    setShowPrompt(false);
-    setQuizStarted(true);
-  };
+  // Atualiza as activeQuestions se as questions originais (vindas do Setup) mudarem
+  useEffect(() => {
+    setActiveQuestions(questions);
+  }, [questions]);
 
   // GRAVAÇÃO PARCIAL (GOTA A GOTA)
   const handlePartialAnswer = (questionId: string, isCorrect: boolean, theme: string) => {
-    const uniqueTitles = Array.from(new Set(questions.map(q => q.quizTitle).filter(Boolean)));
+    const uniqueTitles = Array.from(new Set(activeQuestions.map(q => q.quizTitle).filter(Boolean)));
     const quizName = uniqueTitles.length === 1 ? uniqueTitles[0] : 'Simulado Misto';
 
     onSaveResult(
@@ -61,10 +51,11 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
 
   const handleFinish = (score: number, answers: Record<string, number>) => {
     setFinalScore(score);
+    setUserAnswers(answers);
     
-    const themes = Array.from(new Set(questions.map(q => q.theme)));
+    const themes = Array.from(new Set(activeQuestions.map(q => q.theme)));
     const stats = themes.map(theme => {
-      const themeQs = questions.filter(q => q.theme === theme);
+      const themeQs = activeQuestions.filter(q => q.theme === theme);
       const themeCorrect = themeQs.filter(q => answers[q.id] === q.answer).length;
       return { theme, correct: themeCorrect, total: themeQs.length };
     });
@@ -72,9 +63,39 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
     setThemeStats(stats);
     setIsFinished(true);
     
-    // Limpa o salvamento pois o simulado foi concluído!
+    // Limpa a memória de andamento, afinal o simulado foi concluído!
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(questionsKey);
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // BOTÃO: Refazer todo o simulado
+  const handleRetakeAll = () => {
+    localStorage.setItem(questionsKey, JSON.stringify(questions)); // Salva a lista inteira de volta
+    setSavedState(null); // Reseta qualquer state antigo
     localStorage.removeItem(storageKey);
     
+    setActiveQuestions(questions);
+    setQuizKey(k => k + 1); // Força o InteractiveQuiz a montar do zero
+    setIsFinished(false);
+    setFinalScore(0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // BOTÃO: Refazer apenas as que errou
+  const handleRetakeWrong = () => {
+    const wrongQ = activeQuestions.filter(q => userAnswers[q.id] !== q.answer);
+    if (wrongQ.length === 0) return;
+
+    localStorage.setItem(questionsKey, JSON.stringify(wrongQ)); // Salva a nova lista mais curta
+    setSavedState(null);
+    localStorage.removeItem(storageKey);
+    
+    setActiveQuestions(wrongQ);
+    setQuizKey(k => k + 1);
+    setIsFinished(false);
+    setFinalScore(0);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -84,18 +105,18 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
     const sorted = [...themeStats].sort((a, b) => (b.correct / b.total) - (a.correct / a.total));
     const strong = sorted[0];
     const weak = sorted[sorted.length - 1];
-
     const mainRef = discipline.references?.[0]?.title || "Material Base da Disciplina";
 
     return {
       strong: strong.theme,
       weak: weak.theme,
-      isPerfect: finalScore === questions.length,
+      isPerfect: finalScore === activeQuestions.length,
       recommendation: mainRef
     };
   };
 
   const advice = getPerformanceAdvice();
+  const wrongCount = activeQuestions.filter(q => userAnswers[q.id] !== q.answer).length;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 relative">
@@ -103,35 +124,15 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
         <button onClick={onBack} className="text-[#003366] font-bold hover:text-[#D4A017] transition-colors">← Voltar</button>
         <div className="text-right">
           <h2 className="text-xl font-black text-[#003366] uppercase">{discipline.title}</h2>
-          <p className="text-[8px] text-gray-400 uppercase font-black">{questions.length} Questões</p>
+          <p className="text-[8px] text-gray-400 uppercase font-black">{activeQuestions.length} Questões</p>
         </div>
       </div>
 
-      {/* TELA DE PROMPT (Continuar ou Recomeçar) */}
-      {showPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#003366]/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl max-w-lg w-full animate-in zoom-in duration-300">
-            <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-4xl mb-6 mx-auto">💾</div>
-            <h3 className="text-2xl font-black text-[#003366] mb-4 tracking-tight text-center">Simulado em Andamento</h3>
-            <p className="text-gray-500 mb-8 leading-relaxed text-center font-medium">
-              Detectamos que você não finalizou este simulado na sua última sessão. Deseja continuar exatamente de onde parou ou prefere começar do zero?
-            </p>
-            <div className="flex flex-col gap-3">
-              <button onClick={handleContinue} className="w-full bg-[#003366] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-[#D4A017] hover:text-[#003366] transition-all shadow-xl">
-                Continuar de onde parei
-              </button>
-              <button onClick={handleRestart} className="w-full bg-white border-2 border-gray-100 text-gray-400 py-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:border-red-500 hover:text-red-500 transition-all">
-                Começar do Zero
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* QUIZ INTERATIVO */}
-      {quizStarted && !isFinished && (
+      {/* QUIZ INTERATIVO (Agora aceita ActiveQuestions e usa Key para resetar) */}
+      {!isFinished && (
         <InteractiveQuiz 
-          questions={questions} 
+          key={quizKey}
+          questions={activeQuestions} 
           onFinish={(score, ans) => handleFinish(score, ans)} 
           onAnswerQuestion={handlePartialAnswer}
           storageKey={storageKey}
@@ -139,20 +140,24 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
         />
       )}
 
-      {/* RELATÓRIO FINAL */}
+      {/* RELATÓRIO FINAL E NOVOS BOTÕES DE REVISÃO */}
       {isFinished && (
         <div className="space-y-8 animate-in zoom-in duration-500 pb-20">
           <div className="bg-white p-12 md:p-16 rounded-[3rem] shadow-2xl text-center border border-gray-100">
             <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">🏆</div>
             <h3 className="text-3xl font-black text-[#003366] mb-8 uppercase tracking-tighter">Desempenho no Simulado</h3>
-            <div className="text-8xl font-black text-[#D4A017] mb-4 tracking-tighter">{finalScore}<span className="text-2xl text-gray-300 font-bold ml-2">/ {questions.length}</span></div>
+            <div className="text-8xl font-black text-[#D4A017] mb-4 tracking-tighter">
+              {finalScore}<span className="text-2xl text-gray-300 font-bold ml-2">/ {activeQuestions.length}</span>
+            </div>
             <div className="w-full bg-gray-100 h-4 rounded-full max-w-sm mx-auto overflow-hidden shadow-inner mb-10">
               <div 
                 className="bg-[#003366] h-full transition-all duration-1000" 
-                style={{width: `${(finalScore / questions.length) * 100}%`}}
+                style={{width: `${(finalScore / activeQuestions.length) * 100}%`}}
               ></div>
             </div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Aproveitamento: {Math.round((finalScore/questions.length)*100)}%</p>
+            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">
+              Aproveitamento: {Math.round((finalScore / activeQuestions.length) * 100)}%
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -201,9 +206,27 @@ const QuizView: React.FC<QuizViewProps> = ({ questions, discipline, onBack, onSa
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <button onClick={onBack} className="flex-1 bg-[#003366] text-white py-6 rounded-[2rem] font-black uppercase text-xs tracking-widest hover:bg-[#D4A017] transition-all shadow-xl">Novo Simulado</button>
-            <button onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})} className="flex-1 bg-white border-2 border-gray-100 text-gray-400 py-6 rounded-[2rem] font-black uppercase text-xs tracking-widest hover:border-[#003366] hover:text-[#003366] transition-all">Revisar Erros</button>
+          {/* BOTÕES DE NAVEGAÇÃO E REVISÃO */}
+          <div className="flex flex-col sm:flex-row gap-4 mt-8">
+            <button 
+              onClick={onBack} 
+              className="flex-1 bg-white border-2 border-gray-100 text-gray-400 py-5 rounded-2xl font-black uppercase text-[10px] sm:text-xs tracking-widest hover:border-[#003366] hover:text-[#003366] transition-all"
+            >
+              Voltar ao Menu
+            </button>
+            <button 
+              onClick={handleRetakeAll} 
+              className="flex-1 bg-[#003366] text-white py-5 rounded-2xl font-black uppercase text-[10px] sm:text-xs tracking-widest hover:bg-[#D4A017] transition-all shadow-xl"
+            >
+              🔄 Refazer Completo
+            </button>
+            <button 
+              onClick={handleRetakeWrong} 
+              disabled={wrongCount === 0}
+              className="flex-1 bg-[#D4A017] text-[#003366] py-5 rounded-2xl font-black uppercase text-[10px] sm:text-xs tracking-widest hover:scale-105 transition-all shadow-xl disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+            >
+              🎯 Refazer Erradas
+            </button>
           </div>
         </div>
       )}

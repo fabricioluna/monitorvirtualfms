@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { SimulationInfo, Question } from '../types';
 
 interface QuizSetupViewProps {
@@ -14,6 +14,34 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
   const [quantity, setQuantity] = useState(10);
   const [orderMode, setOrderMode] = useState<'random' | 'sequential'>('random'); 
 
+  // ESTADOS DO AUTO-SAVE
+  const storageKey = `quiz_progress_${discipline.title.replace(/\s+/g, '_')}`;
+  const questionsKey = `quiz_questions_${discipline.title.replace(/\s+/g, '_')}`;
+  const [showPrompt, setShowPrompt] = useState(false);
+
+  // Verifica se há um simulado pendente mal a tela abre
+  useEffect(() => {
+    const savedProgress = localStorage.getItem(storageKey);
+    const savedQuestions = localStorage.getItem(questionsKey);
+    if (savedProgress && savedQuestions) {
+      setShowPrompt(true);
+    }
+  }, [storageKey, questionsKey]);
+
+  const handleContinueSaved = () => {
+    const savedQs = localStorage.getItem(questionsKey);
+    if (savedQs) {
+      onStart(JSON.parse(savedQs));
+    }
+    setShowPrompt(false);
+  };
+
+  const handleRestartSaved = () => {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(questionsKey);
+    setShowPrompt(false);
+  };
+
   // Identifica todos os títulos de simulados únicos nesta disciplina
   const uniqueQuizTitles = useMemo(() => {
     const titles = availableQuestions
@@ -27,12 +55,10 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
     return availableQuestions.filter(q => {
       if (q.disciplineId !== discipline.id) return false;
       
-      // Se selecionou algum título específico, a questão DEVE pertencer a ele
       if (selectedQuizTitles.length > 0 && q.quizTitle && !selectedQuizTitles.includes(q.quizTitle)) {
         return false;
       }
       
-      // Se não selecionou título, obedece ao filtro de temas
       if (selectedQuizTitles.length === 0 && !selectedThemes.includes(q.theme)) {
         return false;
       }
@@ -42,7 +68,6 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
   }, [availableQuestions, discipline.id, selectedThemes, selectedQuizTitles]);
 
   const toggleTheme = (theme: string) => {
-    // Se o usuário clicar num tema, apagamos a seleção de "Simulado Fechado"
     setSelectedQuizTitles([]);
     setSelectedThemes(prev => 
       prev.includes(theme) ? prev.filter(t => t !== theme) : [...prev, theme]
@@ -50,7 +75,6 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
   };
 
   const toggleQuizTitle = (title: string) => {
-    // Se o usuário clicar num simulado fechado, apagamos a seleção de "Temas soltos"
     setSelectedThemes([]);
     setSelectedQuizTitles(prev => 
       prev.includes(title) ? prev.filter(t => t !== title) : [...prev, title]
@@ -86,18 +110,21 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
     if (orderMode === 'random') {
       filtered = [...filtered].sort(() => Math.random() - 0.5);
     } else {
-      // Se for sequencial, a ordem base do array já é a ordem de upload, mas podemos garantir usando o ID (timestamp)
       filtered = [...filtered].sort((a, b) => a.id.localeCompare(b.id));
     }
 
     // Corta a quantidade desejada
     filtered = filtered.slice(0, quantity);
     
+    // Guarda a seleção oficial das questões deste simulado para poder ser recuperado!
+    localStorage.setItem(questionsKey, JSON.stringify(filtered));
+    localStorage.removeItem(storageKey); // Limpa o progresso antigo
+    
     onStart(filtered);
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12 animate-in fade-in zoom-in duration-500">
+    <div className="max-w-3xl mx-auto px-4 py-12 animate-in fade-in zoom-in duration-500 relative">
       <button 
         onClick={onBack} 
         className="group flex items-center text-[#003366] font-bold mb-8 hover:text-[#D4A017] transition-all"
@@ -106,7 +133,28 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
         Voltar à Disciplina
       </button>
       
-      <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100 mb-20">
+      {/* MODAL DE AVISO (Simulado Pendente) */}
+      {showPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#003366]/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl max-w-lg w-full animate-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-4xl mb-6 mx-auto">💾</div>
+            <h3 className="text-2xl font-black text-[#003366] mb-4 tracking-tight text-center">Simulado em Andamento</h3>
+            <p className="text-gray-500 mb-8 leading-relaxed text-center font-medium">
+              Detectamos que você não finalizou o seu último simulado. Deseja continuar exatamente de onde parou ou prefere configurar um novo?
+            </p>
+            <div className="flex flex-col gap-3">
+              <button onClick={handleContinueSaved} className="w-full bg-[#003366] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-[#D4A017] hover:text-[#003366] transition-all shadow-xl">
+                Continuar de onde parei
+              </button>
+              <button onClick={handleRestartSaved} className="w-full bg-white border-2 border-gray-100 text-gray-400 py-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:border-red-500 hover:text-red-500 transition-all">
+                Configurar Novo Simulado
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={`bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100 mb-20 ${showPrompt ? 'opacity-30 pointer-events-none' : ''}`}>
         <div className="text-center mb-10">
           <div className="text-5xl mb-4">{discipline.icon}</div>
           <h2 className="text-3xl font-black text-[#003366] uppercase mb-2 tracking-tighter">
@@ -115,7 +163,7 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
           <p className="text-[#D4A017] text-[10px] font-black uppercase tracking-[0.3em]">{discipline.title}</p>
         </div>
 
-        {/* MODO 1: SIMULADOS FECHADOS (Se houver algum cadastrado) */}
+        {/* MODO 1: SIMULADOS FECHADOS */}
         {uniqueQuizTitles.length > 0 && (
           <div className="mb-10 bg-blue-50/50 p-6 rounded-3xl border border-blue-100">
             <label className="block text-[10px] font-black uppercase tracking-widest text-blue-800 mb-4 text-center">Simulados Completos</label>
@@ -141,7 +189,7 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
           </div>
         )}
 
-        {/* MODO 2: EIXOS TEMÁTICOS (Gerador Misto) */}
+        {/* MODO 2: EIXOS TEMÁTICOS */}
         <div className={`mb-12 ${selectedQuizTitles.length > 0 ? 'opacity-30 grayscale pointer-events-none transition-all' : 'transition-all'}`}>
           <div className="flex justify-between items-center mb-6">
             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Banco de Questões Misto</label>
@@ -170,9 +218,8 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
           </div>
         </div>
 
-        {/* CONFIGURAÇÕES DE ENTREGA (ORDEM E QUANTIDADE) */}
+        {/* CONFIGURAÇÕES DE ENTREGA */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          
           <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 flex flex-col justify-center">
             <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 text-center">Quantidade</label>
             <div className="flex items-center justify-center gap-4">
@@ -202,7 +249,6 @@ const QuizSetupView: React.FC<QuizSetupViewProps> = ({ discipline, availableQues
               </button>
             </div>
           </div>
-
         </div>
 
         <button
