@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Question } from '../types';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Scissors } from 'lucide-react';
 
 interface InteractiveQuizProps {
   questions: Question[];
@@ -14,11 +14,55 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [score, setScore] = useState(0);
 
-  const handleOptionClick = (questionId: string, optionIndex: number, correctIndex: number) => {
-    if (answers[questionId] !== undefined) return;
+  // NOVOS ESTADOS: Para rascunho de seleção e cortes de tesoura
+  const [draftAnswers, setDraftAnswers] = useState<Record<string, number>>({});
+  const [eliminatedOptions, setEliminatedOptions] = useState<Record<string, number[]>>({});
 
-    setAnswers(prev => ({ ...prev, [questionId]: optionIndex }));
-    const isCorrect = optionIndex === correctIndex;
+  // Função para apenas SELECIONAR visualmente (sem confirmar)
+  const handleSelectOption = (questionId: string, optionIndex: number) => {
+    if (answers[questionId] !== undefined) return; // Já respondeu oficialmente
+    if (eliminatedOptions[questionId]?.includes(optionIndex)) return; // Está cortada
+
+    setDraftAnswers(prev => ({ ...prev, [questionId]: optionIndex }));
+  };
+
+  // Função para CORTAR/RESTAURAR alternativa com a tesoura
+  const toggleEliminateOption = (questionId: string, optionIndex: number) => {
+    if (answers[questionId] !== undefined) return; // Já respondeu oficialmente
+
+    setEliminatedOptions(prev => {
+      const currentEliminated = prev[questionId] || [];
+      const isEliminated = currentEliminated.includes(optionIndex);
+      let newEliminated;
+
+      if (isEliminated) {
+        newEliminated = currentEliminated.filter(idx => idx !== optionIndex);
+      } else {
+        newEliminated = [...currentEliminated, optionIndex];
+      }
+
+      return { ...prev, [questionId]: newEliminated };
+    });
+
+    // Se ele cortou a opção que estava selecionada como rascunho, limpamos o rascunho
+    if (draftAnswers[questionId] === optionIndex) {
+      setDraftAnswers(prev => {
+        const newDrafts = { ...prev };
+        delete newDrafts[questionId];
+        return newDrafts;
+      });
+    }
+  };
+
+  // Função para CONFIRMAR a resposta selecionada (Grava no Firebase e avalia)
+  const confirmAnswer = (questionId: string, correctIndex: number) => {
+    const selectedOpt = draftAnswers[questionId];
+    if (selectedOpt === undefined || answers[questionId] !== undefined) return;
+
+    // Salva na lista oficial de respondidas
+    setAnswers(prev => ({ ...prev, [questionId]: selectedOpt }));
+    
+    const isCorrect = selectedOpt === correctIndex;
     
     if (isCorrect) {
       setScore(prev => prev + 1);
@@ -111,40 +155,95 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
 
             <div className="grid gap-4">
               {q.options.map((opt, optIdx) => {
-                let buttonClass = "w-full text-left p-6 rounded-2xl border-2 transition-all duration-300 flex items-center gap-5 ";
-                
+                const isEliminated = eliminatedOptions[q.id]?.includes(optIdx);
+                const isDrafted = draftAnswers[q.id] === optIdx;
+
+                let wrapperClass = "relative flex items-stretch w-full rounded-2xl border-2 transition-all duration-300 ";
+                let letterClass = "flex-shrink-0 w-10 h-10 rounded-xl border-2 flex items-center justify-center font-black text-sm transition-all ";
+                let textClass = "text-sm md:text-base leading-relaxed transition-all duration-300 ";
+
                 if (!isAnswered) {
-                  buttonClass += "border-gray-50 bg-gray-50 hover:border-[#D4A017] hover:bg-white hover:shadow-lg group";
+                  if (isEliminated) {
+                    // CORTADA
+                    wrapperClass += "border-gray-200 bg-gray-50 opacity-50";
+                    letterClass += "border-gray-300 text-gray-400 bg-gray-200";
+                    textClass += "text-gray-400 line-through";
+                  } else if (isDrafted) {
+                    // SELECIONADA (RASCUNHO)
+                    wrapperClass += "border-[#003366] bg-blue-50/50 ring-4 ring-blue-50 shadow-md";
+                    letterClass += "bg-[#003366] border-[#003366] text-white shadow-lg";
+                    textClass += "text-[#003366] font-medium";
+                  } else {
+                    // NORMAL (PENDENTE)
+                    wrapperClass += "border-gray-100 bg-white hover:border-[#D4A017] hover:shadow-md group";
+                    letterClass += "border-gray-200 text-gray-400 group-hover:border-[#D4A017] group-hover:bg-[#D4A017] group-hover:text-white";
+                    textClass += "text-gray-700";
+                  }
                 } else {
                   if (optIdx === q.answer) {
-                    buttonClass += "border-green-500 bg-green-50 text-green-900 font-bold ring-4 ring-green-100";
+                    // GABARITO CORRETO
+                    wrapperClass += "border-green-500 bg-green-50 ring-4 ring-green-100";
+                    letterClass += "bg-green-500 border-green-500 text-white shadow-lg";
+                    textClass += "text-green-900 font-bold";
                   } else if (optIdx === userAnswer) {
-                    buttonClass += "border-red-500 bg-red-50 text-red-900";
+                    // ERROU NESTA
+                    wrapperClass += "border-red-500 bg-red-50";
+                    letterClass += "bg-red-500 border-red-500 text-white";
+                    textClass += "text-red-900";
                   } else {
-                    buttonClass += "border-gray-50 text-gray-300 opacity-50";
+                    // OUTRAS QUANDO JÁ ESTÁ RESPONDIDO
+                    wrapperClass += "border-gray-100 bg-gray-50 opacity-40";
+                    letterClass += "border-gray-200 text-gray-300 bg-gray-100";
+                    textClass += "text-gray-400";
                   }
                 }
 
                 return (
-                  <button
-                    key={optIdx}
-                    disabled={isAnswered}
-                    onClick={() => handleOptionClick(q.id, optIdx, q.answer)}
-                    className={buttonClass}
-                  >
-                    <span className={`flex-shrink-0 w-10 h-10 rounded-xl border-2 flex items-center justify-center font-black text-sm transition-all
-                      ${!isAnswered ? 'border-gray-200 group-hover:border-[#D4A017] group-hover:bg-[#D4A017] group-hover:text-white' : 
-                        optIdx === q.answer ? 'bg-green-500 border-green-500 text-white shadow-lg' : 
-                        optIdx === userAnswer ? 'bg-red-500 border-red-500 text-white' : 'border-gray-100 text-gray-200'}
-                    `}>
-                      {String.fromCharCode(65 + optIdx)}
-                    </span>
-                    <span className="text-sm md:text-base leading-relaxed">{opt}</span>
-                  </button>
+                  <div key={optIdx} className={wrapperClass}>
+                    <button
+                      disabled={isAnswered || isEliminated}
+                      onClick={() => handleSelectOption(q.id, optIdx)}
+                      className="flex-1 text-left p-6 flex items-center gap-5 outline-none focus:outline-none"
+                    >
+                      <span className={letterClass}>
+                        {String.fromCharCode(65 + optIdx)}
+                      </span>
+                      <span className={textClass}>{opt}</span>
+                    </button>
+                    
+                    {!isAnswered && (
+                      <div className="flex items-center pr-4">
+                        <button
+                          onClick={() => toggleEliminateOption(q.id, optIdx)}
+                          className={`p-3 rounded-xl transition-all ${
+                            isEliminated 
+                              ? 'bg-red-100 text-red-500 hover:bg-red-200' 
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-700'
+                          }`}
+                          title={isEliminated ? "Restaurar alternativa" : "Eliminar alternativa"}
+                        >
+                          <Scissors size={18} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
 
+            {/* BOTÃO DE CONFIRMAR RESPOSTA */}
+            {!isAnswered && draftAnswers[q.id] !== undefined && (
+              <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <button
+                  onClick={() => confirmAnswer(q.id, q.answer)}
+                  className="w-full bg-[#003366] text-white py-5 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-[#D4A017] hover:text-[#003366] transition-all shadow-xl"
+                >
+                  Confirmar Resposta
+                </button>
+              </div>
+            )}
+
+            {/* FEEDBACK APÓS CONFIRMAR */}
             {isAnswered && (
               <div className={`mt-10 p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-700 border
                 ${isCorrect ? 'bg-green-50 border-green-200 text-green-900' : 'bg-red-50 border-red-200 text-red-900'}
@@ -185,7 +284,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
           {!isLastQuestion ? (
             <button 
               onClick={nextQuestion}
-              disabled={!isAnswered}
+              disabled={!isAnswered} // Continua bloqueado até ele CONFIRMAR a resposta
               className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all
                 ${!isAnswered ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-[#003366] text-white hover:bg-[#D4A017] hover:text-[#003366] shadow-lg'}
               `}
