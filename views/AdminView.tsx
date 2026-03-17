@@ -85,7 +85,6 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<'questions' | 'osce' | 'stats' | 'references' | 'materials' | 'themes' | 'lab'>('stats');
   
-  // FILTROS DO DASHBOARD DE ESTATÍSTICAS
   const [statsDiscFilter, setStatsDiscFilter] = useState('');
   const [statsTypeFilter, setStatsTypeFilter] = useState('');
   const [statsQuizTitleFilter, setStatsQuizTitleFilter] = useState('');
@@ -107,7 +106,6 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [refType, setRefType] = useState<'book' | 'article' | 'link' | 'video'>('book');
   const [refUrl, setRefUrl] = useState('');
 
-  // ESTADOS DO SIMULADO TEÓRICO (QUESTÕES)
   const [qDiscipline, setQDiscipline] = useState('');
   const [qTheme, setQTheme] = useState('');
   const [qTitle, setQTitle] = useState(''); 
@@ -473,7 +471,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   };
 
   // =========================================================================
-  // MÁQUINA DE ANALYTICS BLINDADA (Agrupamento Legado por Hora)
+  // MÁQUINA DE ANALYTICS BLINDADA (Agrupamento Legado Exclusivo por DIA)
   // =========================================================================
   
   const availableStatTitles = useMemo(() => {
@@ -524,34 +522,36 @@ const AdminView: React.FC<AdminViewProps> = ({
       totalQuestionsAnswered += qTotal;
       totalCorrectAnswers += (qr.score || 0);
 
-      // --- MÁGICA 1: CORREÇÃO DO AGRUPAMENTO (Ignorando os milissegundos) ---
+      // --- MÁGICA 1: CORREÇÃO DO AGRUPAMENTO (CEGO PARA HORAS E SEGUNDOS) ---
       const sessId = (qr.details?.[0] as any)?.sessionId;
       
       if (sessId) {
         // Novo sistema já tem ID único gerado ao abrir o simulado
         sessionTracker.add(sessId);
       } else if (qTotal > 1) {
-        // Simulados fechados enviados em 1 único bloco
+        // Simulados fechados enviados em 1 único bloco antigamente
         historicalFullSims++;
       } else {
-        // Questões antigas do "Gota a Gota" - Extraindo apenas Dia/Mês/Ano e HORA
+        // O CULPADO DO NÚMERO GIGANTE ESTAVA AQUI!
         let timeStr = 'legacy_unknown';
         
         let timeInMillis = qr.createdAt;
-        // Tratamento caso venha como Firebase Timestamp
         if (timeInMillis && typeof timeInMillis === 'object' && (timeInMillis as any).seconds) {
           timeInMillis = (timeInMillis as any).seconds * 1000;
         }
 
         if (timeInMillis) {
           const d = new Date(timeInMillis as number);
-          // Agrupa tudo que foi respondido na mesma hora do dia num único "simulado"
-          timeStr = `${d.getDate()}_${d.getMonth()}_${d.getFullYear()}_${d.getHours()}h`;
+          // Agrupa ESTRITAMENTE pelo dia do ano (ex: 15_2_2026). Ignora horas, minutos e segundos!
+          timeStr = `${d.getDate()}_${d.getMonth()}_${d.getFullYear()}`;
         } else if ((qr as any).date) {
-          timeStr = (qr as any).date;
+          // Ex: "15/03/2026 14:32:15" -> O split corta nos espaços ou vírgulas e pega só "15/03/2026"
+          timeStr = String((qr as any).date).split(/[\s,T]+/)[0];
         }
         
-        sessionTracker.add(`legacy_${qr.quizTitle}_${timeStr}`);
+        // Exemplo final: legacy_Simulado de Cárdio_15_2_2026
+        // Se houver 50 questões com essa chave, o Set() vai guardá-las como 1 único item!
+        sessionTracker.add(`legacy_${qr.quizTitle || 'Misto'}_${timeStr}`);
       }
 
       // --- MÁGICA 2: TEMPO ---
@@ -577,6 +577,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     const totalSimulations = sessionTracker.size + historicalFullSims;
     const globalAccuracy = totalQuestionsAnswered > 0 ? Math.round((totalCorrectAnswers / totalQuestionsAnswered) * 100) : 0;
     
+    // CALCULO DO TEMPO MÉDIO POR QUESTÃO
     const avgTimePerQuestion = timeEntriesCount > 0 ? Math.round(totalTimeSpentSecs / timeEntriesCount) : 0;
     const avgTimeFormatted = avgTimePerQuestion > 60 
         ? `${Math.floor(avgTimePerQuestion / 60)}m ${avgTimePerQuestion % 60}s`
