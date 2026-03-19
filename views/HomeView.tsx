@@ -1,4 +1,3 @@
-
 import React from 'react';
 import DisciplineCard from '../components/DisciplineCard';
 import { SimulationInfo } from '../types';
@@ -55,12 +54,13 @@ const HomeView: React.FC<HomeViewProps> = ({ disciplines, onSelectDiscipline }) 
         </div>
       )}
 
+      {/* Seção atualizada com a nova marca e ícone */}
       <section className="bg-[#003366] p-10 rounded-[2.5rem] shadow-2xl mt-20 text-white relative overflow-hidden">
-        <div className="absolute -right-10 -bottom-10 text-9xl opacity-10">🌵</div>
+        <div className="absolute -right-10 -bottom-10 text-9xl opacity-10">🌙</div>
         <div className="relative z-10">
-          <h4 className="font-black text-2xl mb-4 tracking-tight uppercase italic">Monitoria <span className="text-[#D4A017]">Virtual</span></h4>
+          <h4 className="font-black text-2xl mb-4 tracking-tight uppercase italic">LUNA <span className="text-[#D4A017]">MEDCLASS</span></h4>
           <p className="text-blue-100 text-sm leading-relaxed max-w-3xl font-light">
-            O projeto <strong>Monitoria Virtual</strong> foca na <strong>prática deliberada</strong>. Recomendamos que você utilize os simulados como ferramenta de diagnóstico: identifique suas lacunas de conhecimento e use os <strong>resumos compartilhados</strong> para reforçar o aprendizado colaborativo.
+            O portal <strong>Luna MedClass</strong> foca na <strong>prática deliberada</strong>. Recomendamos que você utilize os simulados como ferramenta de diagnóstico: identifique suas lacunas de conhecimento e use os <strong>resumos compartilhados</strong> para reforçar o aprendizado colaborativo.
           </p>
         </div>
       </section>

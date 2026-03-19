@@ -390,8 +390,14 @@ const App: React.FC = () => {
         )}
       </div>
 
-      <footer className="bg-white border-t py-8 flex flex-col items-center gap-2 mt-auto">
-        <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">© 2026 Medicina do Sertão</div>
+      <footer className="bg-white border-t py-8 flex flex-col items-center gap-2 mt-auto text-center px-4">
+        <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">© 2026 Luna MedClass</div>
+        
+        {/* Aviso de portal independente */}
+        <div className="text-gray-500 text-[9px] font-medium uppercase max-w-md my-1">
+          Produção independente. Este portal não é um canal ou ferramenta oficial de nenhuma instituição de ensino.
+        </div>
+        
         <div className="text-[#D4A017] text-[11px] font-black uppercase tracking-[0.2em] mb-1">Desenvolvido por Fabrício Luna</div>
         <div className="text-[8px] text-gray-300 font-black uppercase tracking-tighter">Build {APP_VERSION}</div>
       </footer>
