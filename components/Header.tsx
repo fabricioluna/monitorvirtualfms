@@ -41,17 +41,17 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, onBack, canGoBack }) => {
             >
               <div className="bg-white p-1 md:p-2 rounded-lg md:rounded-xl w-14 h-8 sm:w-24 sm:h-10 md:w-48 md:h-16 flex items-center justify-center overflow-hidden border-2 border-[#D4A017] shadow-lg transition-transform group-hover:scale-105 flex-shrink-0">
                 <img 
-                  src="https://medicinadosertao.com.br/wp-content/uploads/2021/03/logo-fms-colorido.png" 
-                  alt="Logo FMS" 
+                  src="/logo.png" 
+                  alt="Logo Luna MedClass" 
                   className="w-full h-full object-contain"
                 />
               </div>
               <div className="ml-2 md:ml-4 flex flex-col justify-center min-w-0">
                 <h1 className="text-[10px] sm:text-xs md:text-base font-black tracking-widest leading-tight text-white uppercase truncate">
-                  MONITORIA VIRTUAL
+                  LUNA MEDCLASS
                 </h1>
                 <h2 className="text-[7px] sm:text-[9px] md:text-[10px] font-bold text-[#D4A017] uppercase tracking-widest opacity-90 truncate">
-                  Desenvolvido por Fabrício Luna
+                  Seu Monitor Virtual de Medicina
                 </h2>
               </div>
             </div>

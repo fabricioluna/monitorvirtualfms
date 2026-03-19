@@ -1,11 +1,11 @@
 {
-  "name": "Monitoria Online FMS",
-  "short_name": "Monitoria FMS",
+  "name": "Luna MedClass - Monitor Virtual",
+  "short_name": "Luna MedClass",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f7f6",
   "theme_color": "#003366",
-  "description": "App de estudos e simulados para a Turma 8 de Medicina.",
+  "description": "Seu monitor virtual de medicina com estudos e simulados.",
   "icons": [
     {
       "src": "/img/logo.png",
