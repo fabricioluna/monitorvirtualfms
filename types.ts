@@ -1,6 +1,5 @@
 export type ViewState = 'room-selection' | 'home' | 'discipline' | 'quiz-setup' | 'quiz' | 'admin' | 'summaries-list' | 'scripts-list' | 'osce-setup' | 'osce-quiz' | 'osce-ai-setup' | 'osce-ai-quiz' | 'calculators' | 'career-quiz' | 'references-view' | 'share-material' | 'lab-list' | 'lab-quiz';
 
-// NOVO: Interface para as Salas (Turmas)
 export interface Room {
   id: string;
   name: string;
@@ -8,6 +7,7 @@ export interface Room {
   semester: string;
   workload: string;
   icon: string;
+  crest?: string; // ESTA LINHA É A CHAVE PARA SUMIR O ERRO
 }
 
 export interface QuizDetail {
@@ -48,7 +48,7 @@ export interface OsceStation {
 
 export interface SimulationInfo {
   id: string;
-  roomId: string; // NOVO: Relaciona a disciplina a uma sala específica
+  roomId: string; 
   title: string;
   description: string;
   meta: string;

@@ -1,4 +1,4 @@
-import { Question, SimulationInfo, Room } from './types';
+import { Question, SimulationInfo, Room } from './types.ts';
 
 export const THEME = {
   primary: '#003366',
@@ -8,7 +8,7 @@ export const THEME = {
   text: '#333333'
 };
 
-// NOVO: Definição das Salas
+// Definição das Salas
 export const ROOMS: Room[] = [
   {
     id: 'turma8',
@@ -16,7 +16,8 @@ export const ROOMS: Room[] = [
     description: '2º Período - Ciclo da Homeostase e Prática Clínica Básica.',
     semester: '2026.1',
     workload: '610h',
-    icon: '🎓'
+    icon: '🎓',
+    crest: '/turma8.jpg' 
   },
   {
     id: 'turma9',
