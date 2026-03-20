@@ -143,7 +143,7 @@ export const SIMULATIONS: SimulationInfo[] = [
     description: 'Agentes agressores, imunidade inata e adquirida, inflamação, lesão celular e hipersensibilidade.',
     meta: '110h • Mecanismos de Lesão',
     icon: '🛡️',
-    status: 'locked',
+    status: 'active', // STATUS ALTERADO PARA ACTIVE AQUI!
     themes: [
       'Mecanismos de Lesão Celular', 
       'Imunologia Celular e Humoral', 
