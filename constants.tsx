@@ -22,9 +22,9 @@ export const ROOMS: Room[] = [
   {
     id: 'turma9',
     name: 'Turma IX / HabMed 1',
-    description: '1º Período - Introdução à Medicina, Locomoção e Habilidades Básicas.',
+    description: '1º Período - Monitoria de Introdução à Prática Médica e Habilidades Básicas.',
     semester: '2026.1',
-    workload: '420h',
+    workload: '120h',
     icon: '🌱'
   }
 ];
@@ -170,38 +170,32 @@ export const SIMULATIONS: SimulationInfo[] = [
     references: []
   },
 
-  // --- SALA: TURMA 9 / HABMED 1 ---
+  // --- SALA: TURMA 9 / HABMED 1 EXCLUSIVO ---
   {
     id: 'hm1',
     roomId: 'turma9',
-    title: 'HM1 - Habilidades Médicas I',
-    description: 'Introdução à prática médica, sinais vitais e bases da relação médico-paciente.',
-    meta: '120h • Prática Clínica',
+    title: 'Habilidades Médicas 1',
+    description: 'Introdução à Prática Médica: Biossegurança, sinais vitais, administração de medicamentos e Suporte Básico de Vida (BLS/AHA).',
+    meta: 'Módulo Exclusivo',
     icon: '🩺',
     status: 'active',
     themes: [
-      'Aferição de Sinais Vitais',
-      'Lavagem de Mãos e Biossegurança',
-      'Introdução à Anamnese',
-      'Apresentação Profissional'
+      'Biossegurança e Higienização das Mãos',
+      'Sinais Vitais, Antropometria e Glicemia Capilar',
+      'Administração de Medicamentos (IM, SC, IV)',
+      'Suporte Básico de Vida (BLS/PCR)',
+      'Abordagem Inicial em Urgências (ABCDE)'
     ],
-    references: []
-  },
-  {
-    id: 'uc3',
-    roomId: 'turma9',
-    title: 'UCIII - Locomoção e Preensão',
-    description: 'Anatomia e fisiologia do sistema musculoesquelético e tecidos conjuntivos.',
-    meta: '110h • Sistema Locomotor',
-    icon: '🦴',
-    status: 'active',
-    themes: [
-      'Osteologia Básica',
-      'Miologia e Articulações',
-      'Nervos Periféricos',
-      'Histologia do Osso e Músculo'
-    ],
-    references: []
+    references: [
+      { id: 'ref1', title: 'Normas, rotinas e técnicas de enfermagem (5ª ed.)', author: 'MOTTA AL', type: 'book' },
+      { id: 'ref2', title: 'Avaliação nutricional de coletividades (4ª ed.)', author: 'VASCONCELOS FAG', type: 'book' },
+      { id: 'ref3', title: 'Avaliação antropométrica em Pediatria: guia prático para profissionais da saúde', author: 'BARROS SP et al.', type: 'book' },
+      { id: 'ref4', title: 'Curso básico de controle de infecção hospitalar (E-book)', author: 'BRASIL. Ministério da Saúde', type: 'book' },
+      { id: 'ref5', title: 'Metodologia científica (6ª ed.)', author: 'CERVO AL et al.', type: 'book' },
+      { id: 'ref6', title: 'Semiologia para enfermagem: conceitos e prática clínica', author: 'JENSEN S', type: 'book' },
+      { id: 'ref7', title: 'Suporte básico de vida: primeiro atendimento na emergência para profissionais da saúde', author: 'QUILICI AP et al.', type: 'book' },
+      { id: 'ref8', title: 'Vigilância Epidemiológica das infecções hospitalares no estado de São Paulo', author: 'Governo de São Paulo. Coord. de Controle de Doenças.', type: 'article' }
+    ]
   }
 ];
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Question } from '../types';
-import { ArrowLeft, ArrowRight, Scissors } from 'lucide-react';
+import { Question } from '../types.ts';
+import { ArrowLeft, ArrowRight, Scissors, SkipForward, LayoutGrid, X } from 'lucide-react';
 
 interface InteractiveQuizProps {
   questions: Question[];
@@ -16,6 +16,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
   const [score, setScore] = useState(resumeState?.score || 0);
   const [draftAnswers, setDraftAnswers] = useState<Record<string, number>>(resumeState?.draftAnswers || {});
   const [eliminatedOptions, setEliminatedOptions] = useState<Record<string, number[]>>(resumeState?.eliminatedOptions || {});
+  const [isGridOpen, setIsGridOpen] = useState(false);
 
   useEffect(() => {
     const stateToSave = {
@@ -92,14 +93,20 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
     }
   };
 
+  const jumpToQuestion = (index: number) => {
+    setCurrentIndex(index);
+    setIsGridOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const q = questions[currentIndex];
   const userAnswer = answers[q.id];
   const isAnswered = userAnswer !== undefined;
   const isCorrect = isAnswered && userAnswer === q.answer;
-  const answeredCount = Object.keys(answers).length;
   const isLastQuestion = currentIndex === questions.length - 1;
-  const isCompleted = answeredCount === questions.length;
   const progress = ((currentIndex + 1) / questions.length) * 100;
+  
+  const unansweredCount = questions.length - Object.keys(answers).length;
 
   return (
     <div className="space-y-6 pb-32">
@@ -133,7 +140,6 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               : 'border-transparent'}
           `}
         >
-          {/* IMAGEM DA QUESTÃO (Mais compacta) */}
           {q.image && (
             <div className="w-full h-48 md:h-64 bg-gray-100 border-b overflow-hidden group">
               <img 
@@ -145,8 +151,6 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
           )}
 
           <div className="p-5 md:p-8">
-            
-            {/* BADGES DA QUESTÃO */}
             <div className="flex flex-wrap items-center gap-2 mb-5">
               <span className="bg-[#003366] text-white px-3 py-1 rounded-full font-black text-[10px] uppercase tracking-widest">
                 Questão {currentIndex + 1}
@@ -156,12 +160,10 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               </span>
             </div>
             
-            {/* TEXTO DA PERGUNTA */}
             <h4 className="text-lg md:text-xl font-bold text-[#003366] mb-6 leading-relaxed tracking-tight">
               {q.q}
             </h4>
 
-            {/* LISTA DE ALTERNATIVAS A, B, C, D (Mais ajustadas) */}
             <div className="grid gap-3">
               {q.options.map((opt, optIdx) => {
                 const isEliminated = eliminatedOptions[q.id]?.includes(optIdx);
@@ -186,7 +188,6 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
                     textClass += "text-gray-700";
                   }
                 } else {
-                  // MODO RESPONDIDO (GABARITO REVELADO)
                   if (optIdx === q.answer) {
                     wrapperClass += "border-green-500 bg-green-50 ring-2 ring-green-100";
                     letterClass += "bg-green-500 border-green-500 text-white shadow-md";
@@ -215,7 +216,6 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
                       <span className={textClass}>{opt}</span>
                     </button>
                     
-                    {/* ÍCONE DE TESOURA */}
                     {!isAnswered && (
                       <div className="flex items-center pr-3">
                         <button
@@ -236,7 +236,6 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               })}
             </div>
 
-            {/* BOTÃO DE CONFIRMAR RESPOSTA (Menos massivo) */}
             {!isAnswered && draftAnswers[q.id] !== undefined && (
               <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <button
@@ -248,7 +247,6 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
               </div>
             )}
 
-            {/* CAIXA DE EXPLICAÇÃO */}
             {isAnswered && (
               <div className={`mt-6 p-5 md:p-6 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-500 border
                 ${isCorrect ? 'bg-green-50 border-green-200 text-green-900' : 'bg-red-50 border-red-200 text-red-900'}
@@ -274,7 +272,7 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
           </div>
         </div>
 
-        {/* --- BOTÕES ANTERIOR E PRÓXIMA --- */}
+        {/* --- BOTÕES ANTERIOR E PRÓXIMA (Permite Pular) --- */}
         <div className="mt-6 flex justify-between items-center gap-3">
           <button 
             onClick={prevQuestion}
@@ -289,58 +287,106 @@ const InteractiveQuiz: React.FC<InteractiveQuizProps> = ({ questions, onFinish, 
           {!isLastQuestion ? (
             <button 
               onClick={nextQuestion}
-              disabled={!isAnswered}
               className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all
-                ${!isAnswered ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-[#003366] text-white hover:bg-[#D4A017] hover:text-[#003366] shadow-md'}
+                ${isAnswered ? 'bg-[#003366] text-white hover:bg-[#D4A017] hover:text-[#003366] shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}
               `}
             >
-              Próxima <ArrowRight size={14} />
+              {isAnswered ? 'Próxima' : 'Pular' } {isAnswered ? <ArrowRight size={14} /> : <SkipForward size={14} />}
             </button>
           ) : (
-            <div className="flex-1"></div>
+            <button 
+              onClick={() => onFinish(score, answers)}
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all bg-[#D4A017] text-[#003366] hover:scale-105 shadow-md"
+            >
+              Ver Relatório
+            </button>
           )}
         </div>
       </div>
 
-      {/* --- BARRA FLUTUANTE DE PONTUAÇÃO --- */}
-      <div className="fixed bottom-6 left-0 right-0 z-50 px-4 pointer-events-none">
-        <div className="max-w-md mx-auto bg-[#003366] text-white p-4 rounded-3xl shadow-xl flex items-center justify-between border-2 border-[#D4A017] pointer-events-auto">
-          
-          <div className="flex items-center space-x-4 pl-2">
-            <div className="bg-white/10 p-2.5 rounded-xl">
-              <span className="text-xl">📊</span>
+      {/* --- MENU GRID DE NAVEGAÇÃO RÁPIDA (Drawer) --- */}
+      {isGridOpen && (
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end pointer-events-auto">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsGridOpen(false)}></div>
+          <div className="bg-white rounded-t-[2rem] p-6 pb-24 shadow-2xl relative z-10 animate-in slide-in-from-bottom-8 duration-300 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-black text-[#003366] uppercase tracking-widest text-sm">Navegação do Simulado</h3>
+              <button onClick={() => setIsGridOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200">
+                <X size={16} />
+              </button>
             </div>
-            <div>
+            
+            <div className="flex items-center gap-4 mb-6 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-green-500"></div> Acertos</div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500"></div> Erros</div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-gray-200"></div> Pendentes</div>
+            </div>
+
+            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3">
+              {questions.map((quest, idx) => {
+                const isQAnswered = answers[quest.id] !== undefined;
+                const isQCorrect = isQAnswered && answers[quest.id] === quest.answer;
+                
+                let btnClass = "aspect-square rounded-xl font-black text-sm flex items-center justify-center transition-all ";
+                
+                if (idx === currentIndex) {
+                  btnClass += "ring-4 ring-[#D4A017] ring-offset-2 ";
+                }
+
+                if (!isQAnswered) {
+                  btnClass += "bg-gray-100 text-gray-400 hover:bg-gray-200";
+                } else if (isQCorrect) {
+                  btnClass += "bg-green-500 text-white shadow-sm";
+                } else {
+                  btnClass += "bg-red-500 text-white shadow-sm";
+                }
+
+                return (
+                  <button key={idx} onClick={() => jumpToQuestion(idx)} className={btnClass}>
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- BARRA FLUTUANTE INFERIOR --- */}
+      <div className="fixed bottom-6 left-0 right-0 z-50 px-4 pointer-events-none">
+        <div className="max-w-md mx-auto bg-[#003366] text-white p-3 rounded-3xl shadow-xl flex items-center justify-between border-2 border-[#D4A017] pointer-events-auto">
+          
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsGridOpen(true)}
+              className="bg-white/10 p-3 rounded-xl hover:bg-white/20 transition-all flex items-center gap-2"
+              title="Abrir mapa de questões"
+            >
+              <LayoutGrid size={18} className="text-[#D4A017]" />
+              {unansweredCount > 0 && (
+                <span className="bg-[#D4A017] text-[#003366] text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                  {unansweredCount} pendentes
+                </span>
+              )}
+            </button>
+            
+            <div className="hidden sm:block">
+              <p className="text-[8px] font-black uppercase tracking-widest text-blue-200">Progresso</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-sm font-black text-white">{Object.keys(answers).length}</span>
+                <span className="text-[10px] font-bold opacity-40">/ {questions.length} resp.</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center pl-2 border-l border-white/10">
+            <div className="pr-3 text-right">
               <p className="text-[8px] font-black uppercase tracking-widest text-blue-200">Pontuação</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-black text-[#D4A017]">{score}</span>
                 <span className="text-[10px] font-bold opacity-40">/ {questions.length}</span>
               </div>
             </div>
-          </div>
-          
-          <div className="flex items-center">
-            {isCompleted && isLastQuestion ? (
-              <button 
-                onClick={() => onFinish(score, answers)}
-                className="bg-[#D4A017] text-[#003366] px-6 py-2.5 rounded-xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all shadow-md"
-              >
-                Ver Relatório
-              </button>
-            ) : (
-              <div className="pr-3 text-right">
-                <p className="text-[7px] font-black uppercase tracking-widest text-orange-300">{isCompleted ? 'Finalize na última' : 'Responda todas'}</p>
-                <div className="flex gap-1 mt-1 justify-end">
-                   {questions.map((quest, i) => (
-                     <div 
-                      key={i} 
-                      className={`h-1 rounded-full transition-all duration-300
-                        ${i === currentIndex ? 'w-3 bg-[#D4A017]' : answers[quest.id] !== undefined ? 'w-1.5 bg-green-400' : 'w-1.5 bg-white/10'}`}
-                      ></div>
-                   ))}
-                </div>
-              </div>
-            )}
           </div>
 
         </div>
