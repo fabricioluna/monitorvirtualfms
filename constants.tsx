@@ -32,30 +32,21 @@ export const ROOMS: Room[] = [
 export const SIMULATIONS: SimulationInfo[] = [
   // --- SALA: TURMA 8 ---
   {
-    id: 'uciv',
+    id: 'ucv',
     roomId: 'turma8',
-    title: 'UCIV - Funções Biológicas',
-    description: 'Controle neuroendócrino, cardiovascular, respiratório, renal, digestório e equilíbrio ácido-básico.',
-    meta: '110h • Ciclo da Homeostase',
-    icon: '🫀',
+    title: 'UCV - Mecanismos de Agressão e Defesa',
+    description: 'Agentes agressores, imunidade inata e adquirida, inflamação, lesão celular e hipersensibilidade.',
+    meta: '110h • Mecanismos de Lesão',
+    icon: '🛡️',
     status: 'active',
     themes: [
-      'Fisiologia Cardiovascular', 
-      'Fisiologia Respiratória', 
-      'Fisiologia Renal e Eletrólitos', 
-      'Fisiologia Digestória',
-      'Equilíbrio Ácido-Básico',
-      'Biofísica e Bioquímica'
+      'Mecanismos de Lesão Celular', 
+      'Imunologia Celular e Humoral', 
+      'Processos Inflamatórios', 
+      'Microbiologia e Parasitologia',
+      'Hipersensibilidade e Alergia'
     ],
-    references: [
-      { id: 'ref_fisio1', title: 'Tratado de Fisiologia Médica (Guyton & Hall)', author: 'John E. Hall', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214483' },
-      { id: 'ref_fisio2', title: 'Fisiologia (Linda Costanzo)', author: 'Linda S. Costanzo', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214442' },
-      { id: 'ref_anato1', title: 'Anatomia Orientada para a Clínica (Moore)', author: 'Keith L. Moore', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214507' },
-      { id: 'ref_anato2', title: 'Atlas de Anatomia Humana (Netter)', author: 'Frank H. Netter', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214509' },
-      { id: 'ref_bioq1', title: 'Princípios de Bioquímica (Lehninger)', author: 'David L. Nelson', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/213429' },
-      { id: 'ref_histo1', title: 'Histologia Básica (Junqueira & Carneiro)', author: 'L.C. Junqueira', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214487' },
-      { id: 'ref_embrio1', title: 'Embriologia Clínica (Moore)', author: 'Keith L. Moore', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214458' }
-    ]
+    references: []
   },
   {
     id: 'hm2',
@@ -137,21 +128,30 @@ export const SIMULATIONS: SimulationInfo[] = [
     ]
   },
   {
-    id: 'ucv',
+    id: 'uciv',
     roomId: 'turma8',
-    title: 'UCV - Mecanismos de Agressão e Defesa',
-    description: 'Agentes agressores, imunidade inata e adquirida, inflamação, lesão celular e hipersensibilidade.',
-    meta: '110h • Mecanismos de Lesão',
-    icon: '🛡️',
-    status: 'active', // STATUS ALTERADO PARA ACTIVE AQUI!
+    title: 'UCIV - Funções Biológicas',
+    description: 'Controle neuroendócrino, cardiovascular, respiratório, renal, digestório e equilíbrio ácido-básico.',
+    meta: '110h • Ciclo da Homeostase',
+    icon: '🫀',
+    status: 'active',
     themes: [
-      'Mecanismos de Lesão Celular', 
-      'Imunologia Celular e Humoral', 
-      'Processos Inflamatórios', 
-      'Microbiologia e Parasitologia',
-      'Hipersensibilidade e Alergia'
+      'Fisiologia Cardiovascular', 
+      'Fisiologia Respiratória', 
+      'Fisiologia Renal e Eletrólitos', 
+      'Fisiologia Digestória',
+      'Equilíbrio Ácido-Básico',
+      'Biofísica e Bioquímica'
     ],
-    references: []
+    references: [
+      { id: 'ref_fisio1', title: 'Tratado de Fisiologia Médica (Guyton & Hall)', author: 'John E. Hall', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214483' },
+      { id: 'ref_fisio2', title: 'Fisiologia (Linda Costanzo)', author: 'Linda S. Costanzo', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214442' },
+      { id: 'ref_anato1', title: 'Anatomia Orientada para a Clínica (Moore)', author: 'Keith L. Moore', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214507' },
+      { id: 'ref_anato2', title: 'Atlas de Anatomia Humana (Netter)', author: 'Frank H. Netter', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214509' },
+      { id: 'ref_bioq1', title: 'Princípios de Bioquímica (Lehninger)', author: 'David L. Nelson', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/213429' },
+      { id: 'ref_histo1', title: 'Histologia Básica (Junqueira & Carneiro)', author: 'L.C. Junqueira', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214487' },
+      { id: 'ref_embrio1', title: 'Embriologia Clínica (Moore)', author: 'Keith L. Moore', type: 'link', url: 'http://biblioteca.medicinadosertao.com.br/biblioteca/acervo/detalhe/214458' }
+    ]
   },
   {
     id: 'ucvi',

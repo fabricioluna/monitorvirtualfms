@@ -38,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, onBack, canGoBack, hasRoomS
 
             <div 
               className="flex items-center cursor-pointer group min-w-0 flex-shrink" 
-              onClick={() => navigateTo('home')}
+              onClick={() => navigateTo('room-selection')} // AQUI: Alterado de 'home' para 'room-selection'
             >
               <div className="bg-white p-1 md:p-2 rounded-lg md:rounded-xl w-14 h-8 sm:w-24 sm:h-10 md:w-48 md:h-16 flex items-center justify-center overflow-hidden border-2 border-[#D4A017] shadow-lg transition-transform group-hover:scale-105 flex-shrink-0">
                 <img 
