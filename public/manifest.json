@@ -1,11 +1,11 @@
 {
-  "name": "Luna MedClass - Monitor Virtual",
+  "name": "Luna MedClass",
   "short_name": "Luna MedClass",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f7f6",
   "theme_color": "#003366",
-  "description": "Seu monitor virtual de medicina com estudos e simulados.",
+  "description": "Portal de estudos, simulados e OSCE.",
   "icons": [
     {
       "src": "/img/logo.png",
