@@ -29,9 +29,12 @@ const DisciplineView: React.FC<DisciplineViewProps> = ({ disciplineId, disciplin
       <div className="bg-white rounded-[3rem] p-8 md:p-14 shadow-2xl border border-gray-100 mb-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#f4f7f6] rounded-full -mr-20 -mt-20 opacity-50"></div>
         <div className="flex flex-col md:flex-row gap-8 items-center md:items-start relative z-10">
-          <div className="w-32 h-32 bg-[#003366] rounded-full flex items-center justify-center text-6xl shadow-xl border-4 border-white shrink-0">
+          
+          {/* AQUI ESTÁ A MUDANÇA: Fundo branco e texto colorido para destacar o emoji */}
+          <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center text-6xl shadow-xl border-4 border-[#003366] shrink-0">
             {discipline.icon}
           </div>
+
           <div className="text-center md:text-left">
             <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 inline-block shadow-sm">
               Módulo Liberado
