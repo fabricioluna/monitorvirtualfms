@@ -102,20 +102,16 @@ const App: React.FC = () => {
     setTimeout(() => setIsLoading(false), 2000);
   }, []);
 
-  // LÓGICA ATUALIZADA: Pula a Home se houver apenas 1 disciplina
   const handleSelectRoom = (roomId: string) => {
     setSelectedRoomId(roomId);
     
-    // Verifica quantas disciplinas existem para a sala selecionada
     const roomDiscs = disciplines.filter(d => d.roomId === roomId);
     
     if (roomDiscs.length === 1) {
-      // Se tiver apenas 1 disciplina, pula a tela 'home' e vai direto pro conteúdo da disciplina
       setSelectedDisciplineId(roomDiscs[0].id);
       setCurrentView('discipline');
       setViewHistory(['room-selection', 'discipline']);
     } else {
-      // Se tiver mais de uma, fluxo normal indo para a tela 'home'
       setCurrentView('home');
       setViewHistory(['room-selection', 'home']);
     }
@@ -366,7 +362,14 @@ const App: React.FC = () => {
             onAddSummary={(s) => db && push(ref(db, 'summaries'), s)}
             onRemoveSummary={(id) => { const s = summaries.find(item => item.id === id); if (db && s?.firebaseId) remove(ref(db, `summaries/${s.firebaseId}`)); }}
             onAddQuestions={(qs) => db && qs.forEach(q => push(ref(db, 'questions'), q))}
-            onUpdateQuestion={() => {}}
+            
+            // AQUI ESTÁ A MÁGICA DA ATUALIZAÇÃO NO FIREBASE
+            onUpdateQuestion={(q) => {
+              if (db && q.firebaseId) {
+                set(ref(db, `questions/${q.firebaseId}`), q);
+              }
+            }}
+            
             onAddOsceStations={(os) => db && os.forEach(o => push(ref(db, 'osce'), o))}
             
             onAddLabSimulation={(sim) => db && push(ref(db, 'labSimulations'), sim)}

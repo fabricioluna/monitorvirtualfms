@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Question, OsceStation, SimulationInfo, Summary, QuizResult, ReferenceMaterial, LabSimulation, LabQuestion } from '../types.ts';
-import { Trash2, Plus, BookOpen, Layers, BarChart3, FileText, ClipboardList, Stethoscope, Microscope, Loader2 } from 'lucide-react';
+import { Trash2, Plus, BookOpen, Layers, BarChart3, FileText, ClipboardList, Stethoscope, Microscope, Loader2, Edit3, X } from 'lucide-react';
 
 // IMPORTAÇÕES DO FIREBASE
 import { firestoreDB, storage } from '../firebase.ts';
@@ -64,6 +64,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   quizResults,
   labSimulations = [],
   onAddQuestions,
+  onUpdateQuestion,
   onAddOsceStations,
   onAddLabSimulation, 
   onRemoveQuestion,
@@ -132,6 +133,21 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [labImageFiles, setLabImageFiles] = useState<FileList | null>(null);
   const [isLabUploading, setIsLabUploading] = useState(false);
   const [labUploadProgress, setLabUploadProgress] = useState('');
+
+  // =========================================================================
+  // ESTADOS DO MODAL DE EDIÇÃO / ADIÇÃO MANUAL DE QUESTÃO
+  // =========================================================================
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [editingQId, setEditingQId] = useState<string>('');
+  
+  const [mqDiscipline, setMqDiscipline] = useState('');
+  const [mqTheme, setMqTheme] = useState('');
+  const [mqQuizTitle, setMqQuizTitle] = useState('');
+  const [mqText, setMqText] = useState('');
+  const [mqOptions, setMqOptions] = useState<string[]>(['', '', '', '']);
+  const [mqAnswer, setMqAnswer] = useState(0);
+  const [mqExplanation, setMqExplanation] = useState('');
 
   useEffect(() => {
     const q = query(collection(firestoreDB, "materials"));
@@ -471,9 +487,82 @@ const AdminView: React.FC<AdminViewProps> = ({
   };
 
   // =========================================================================
-  // MÁQUINA DE ANALYTICS BLINDADA (Agrupamento Legado Exclusivo por DIA)
+  // FUNÇÕES DO MODAL MANUAL DE QUESTÕES
   // =========================================================================
-  
+  const handleOpenAddModal = () => {
+    setModalMode('add');
+    setEditingQId('');
+    setMqDiscipline(discFilter || '');
+    setMqTheme(themeFilter || '');
+    setMqQuizTitle(quizFilter || '');
+    setMqText('');
+    setMqOptions(['', '', '', '']);
+    setMqAnswer(0);
+    setMqExplanation('');
+    setIsQuestionModalOpen(true);
+  };
+
+  const handleOpenEditModal = (q: Question) => {
+    setModalMode('edit');
+    setEditingQId(q.id);
+    setMqDiscipline(q.disciplineId);
+    setMqTheme(q.theme);
+    setMqQuizTitle(q.quizTitle || '');
+    setMqText(q.q);
+    
+    // Garantir que sempre tenha 4 opções para não quebrar a UI
+    const safeOptions = [...q.options];
+    while(safeOptions.length < 4) safeOptions.push('');
+    setMqOptions(safeOptions);
+    
+    setMqAnswer(q.answer);
+    setMqExplanation(q.explanation);
+    setIsQuestionModalOpen(true);
+  };
+
+  const handleSaveModalQuestion = () => {
+    if (!mqDiscipline || !mqTheme || !mqQuizTitle || !mqText || mqOptions.some(o => !o.trim())) {
+      return alert("Preencha a Disciplina, Tema, Simulado, o Enunciado e as 4 Alternativas!");
+    }
+
+    if (modalMode === 'edit') {
+      const existingQ = questions.find(q => q.id === editingQId);
+      if (existingQ) {
+        onUpdateQuestion({
+          ...existingQ,
+          disciplineId: mqDiscipline,
+          theme: mqTheme,
+          quizTitle: mqQuizTitle,
+          q: mqText,
+          options: mqOptions,
+          answer: mqAnswer,
+          explanation: mqExplanation
+        });
+        alert("Questão atualizada com sucesso!");
+      }
+    } else {
+      const newQ: Question = {
+        id: `q_manual_${Date.now()}`,
+        disciplineId: mqDiscipline,
+        theme: mqTheme,
+        quizTitle: mqQuizTitle,
+        q: mqText,
+        options: mqOptions,
+        answer: mqAnswer,
+        explanation: mqExplanation,
+        tag: 'Teórica',
+        isPractical: false,
+        author: 'Admin'
+      };
+      onAddQuestions([newQ]);
+      alert("Questão adicionada ao simulado com sucesso!");
+    }
+    setIsQuestionModalOpen(false);
+  };
+
+  // =========================================================================
+  // MÁQUINA DE ANALYTICS BLINDADA
+  // =========================================================================
   const availableStatTitles = useMemo(() => {
     const titles = new Set<string>();
     quizResults.forEach(qr => {
@@ -522,17 +611,13 @@ const AdminView: React.FC<AdminViewProps> = ({
       totalQuestionsAnswered += qTotal;
       totalCorrectAnswers += (qr.score || 0);
 
-      // --- MÁGICA 1: CORREÇÃO DO AGRUPAMENTO (CEGO PARA HORAS E SEGUNDOS) ---
       const sessId = (qr.details?.[0] as any)?.sessionId;
       
       if (sessId) {
-        // Novo sistema já tem ID único gerado ao abrir o simulado
         sessionTracker.add(sessId);
       } else if (qTotal > 1) {
-        // Simulados fechados enviados em 1 único bloco antigamente
         historicalFullSims++;
       } else {
-        // O CULPADO DO NÚMERO GIGANTE ESTAVA AQUI!
         let timeStr = 'legacy_unknown';
         
         let timeInMillis = qr.createdAt;
@@ -542,19 +627,14 @@ const AdminView: React.FC<AdminViewProps> = ({
 
         if (timeInMillis) {
           const d = new Date(timeInMillis as number);
-          // Agrupa ESTRITAMENTE pelo dia do ano (ex: 15_2_2026). Ignora horas, minutos e segundos!
           timeStr = `${d.getDate()}_${d.getMonth()}_${d.getFullYear()}`;
         } else if ((qr as any).date) {
-          // Ex: "15/03/2026 14:32:15" -> O split corta nos espaços ou vírgulas e pega só "15/03/2026"
           timeStr = String((qr as any).date).split(/[\s,T]+/)[0];
         }
         
-        // Exemplo final: legacy_Simulado de Cárdio_15_2_2026
-        // Se houver 50 questões com essa chave, o Set() vai guardá-las como 1 único item!
         sessionTracker.add(`legacy_${qr.quizTitle || 'Misto'}_${timeStr}`);
       }
 
-      // --- MÁGICA 2: TEMPO ---
       if (qr.timeSpent && qr.timeSpent > 0) {
         totalTimeSpentSecs += qr.timeSpent;
         timeEntriesCount += qTotal; 
@@ -577,7 +657,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     const totalSimulations = sessionTracker.size + historicalFullSims;
     const globalAccuracy = totalQuestionsAnswered > 0 ? Math.round((totalCorrectAnswers / totalQuestionsAnswered) * 100) : 0;
     
-    // CALCULO DO TEMPO MÉDIO POR QUESTÃO
     const avgTimePerQuestion = timeEntriesCount > 0 ? Math.round(totalTimeSpentSecs / timeEntriesCount) : 0;
     const avgTimeFormatted = avgTimePerQuestion > 60 
         ? `${Math.floor(avgTimePerQuestion / 60)}m ${avgTimePerQuestion % 60}s`
@@ -944,18 +1023,26 @@ const AdminView: React.FC<AdminViewProps> = ({
              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
                 <div className="flex flex-col gap-2">
                   <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter">Gestão de Questões</h3>
-                  <button
-                    onClick={() => {
-                      const pass = prompt(`⚠️ AÇÃO DESTRUTIVA: Apagar as questões ${discFilter ? 'da disciplina selecionada' : 'de TODAS as disciplinas'}?\nDigite a senha (fmst8) para confirmar:`);
-                      if (pass === 'fmst8') {
-                        onClearQuestions(discFilter || undefined);
-                        alert("✅ Questões apagadas com sucesso.");
-                      } else if (pass !== null) alert("❌ Senha incorreta.");
-                    }}
-                    className="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-200 transition-all w-fit"
-                  >
-                    Apagar {discFilter ? 'da Disciplina' : 'Tudo'} 🗑️
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleOpenAddModal}
+                      className="bg-[#D4A017] text-[#003366] px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all w-fit shadow-sm"
+                    >
+                      + Add Manual ✍️
+                    </button>
+                    <button
+                      onClick={() => {
+                        const pass = prompt(`⚠️ AÇÃO DESTRUTIVA: Apagar as questões ${discFilter ? 'da disciplina selecionada' : 'de TODAS as disciplinas'}?\nDigite a senha (fmst8) para confirmar:`);
+                        if (pass === 'fmst8') {
+                          onClearQuestions(discFilter || undefined);
+                          alert("✅ Questões apagadas com sucesso.");
+                        } else if (pass !== null) alert("❌ Senha incorreta.");
+                      }}
+                      className="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-200 transition-all w-fit"
+                    >
+                      Apagar {discFilter ? 'da Disciplina' : 'Tudo'} 🗑️
+                    </button>
+                  </div>
                 </div>
                 
                 {/* FILTROS E BOTÃO DE EXCLUIR SIMULADO INTEIRO */}
@@ -995,7 +1082,7 @@ const AdminView: React.FC<AdminViewProps> = ({
              
              <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
                 {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter) && (!quizFilter || q.quizTitle === quizFilter)).map(q => (
-                  <div key={q.id} className="p-4 bg-gray-50 rounded-2xl border flex justify-between items-start gap-4 group hover:border-red-100 transition-all">
+                  <div key={q.id} className="p-4 bg-gray-50 rounded-2xl border flex justify-between items-start gap-4 group hover:border-[#D4A017] transition-all">
                     <div>
                       <p className="text-xs font-bold text-gray-700 leading-snug">{q.q}</p>
                       <div className="flex gap-2 mt-2 flex-wrap">
@@ -1004,7 +1091,14 @@ const AdminView: React.FC<AdminViewProps> = ({
                          {q.quizTitle && <span className="text-[8px] font-black uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded border border-blue-200 text-blue-800">📄 {q.quizTitle}</span>}
                       </div>
                     </div>
-                    <button onClick={() => confirm("Excluir esta questão?") && onRemoveQuestion(q.id)} className="text-red-300 hover:text-red-500 transition-colors pt-1"><Trash2 size={16}/></button>
+                    <div className="flex flex-col gap-2 pt-1">
+                      <button onClick={() => handleOpenEditModal(q)} className="text-blue-400 hover:text-blue-600 transition-colors bg-white p-1.5 rounded-lg border shadow-sm" title="Editar Questão">
+                        <Edit3 size={16}/>
+                      </button>
+                      <button onClick={() => confirm("Excluir esta questão?") && onRemoveQuestion(q.id)} className="text-red-400 hover:text-red-600 transition-colors bg-white p-1.5 rounded-lg border shadow-sm" title="Excluir Questão">
+                        <Trash2 size={16}/>
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {questions.filter(q => (!discFilter || q.disciplineId === discFilter) && (!themeFilter || q.theme === themeFilter) && (!quizFilter || q.quizTitle === quizFilter)).length === 0 && (
@@ -1258,6 +1352,97 @@ const AdminView: React.FC<AdminViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* ==================================================================== */}
+      {/* MODAL SOBREPOSTO DE EDIÇÃO/CRIAÇÃO DE QUESTÃO (POPUP) */}
+      {/* ==================================================================== */}
+      {isQuestionModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-[#003366]/80 backdrop-blur-sm flex justify-center items-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+            
+            {/* Header */}
+            <div className="p-6 md:px-8 border-b flex justify-between items-center bg-gray-50">
+              <h3 className="text-xl md:text-2xl font-black text-[#003366] uppercase tracking-tighter">
+                {modalMode === 'edit' ? '✏️ Editar Questão' : '➕ Nova Questão Manual'}
+              </h3>
+              <button onClick={() => setIsQuestionModalOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors bg-white p-2 rounded-xl shadow-sm border">
+                <X size={24}/>
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div>
+                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Disciplina</label>
+                   <select value={mqDiscipline} onChange={e => { setMqDiscipline(e.target.value); setMqTheme(''); }} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm border focus:border-[#003366] outline-none">
+                     <option value="">Selecione...</option>
+                     {disciplines.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                   </select>
+                 </div>
+                 <div>
+                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Tema</label>
+                   <select value={mqTheme} onChange={e => setMqTheme(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm border focus:border-[#003366] outline-none" disabled={!mqDiscipline}>
+                     <option value="">Selecione o Eixo...</option>
+                     {mqDiscipline && disciplines.find(d => d.id === mqDiscipline)?.themes?.map(t => <option key={t} value={t}>{t}</option>)}
+                   </select>
+                 </div>
+               </div>
+
+               <div>
+                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Simulado (Nome do Arquivo/Lista)</label>
+                 <input type="text" value={mqQuizTitle} onChange={e => setMqQuizTitle(e.target.value)} placeholder="Ex: P1 Fisiologia" className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm border focus:border-[#003366] outline-none"/>
+               </div>
+
+               <div>
+                 <label className="text-[10px] font-black uppercase tracking-widest text-[#003366] mb-1 block">Enunciado da Questão</label>
+                 <textarea value={mqText} onChange={e => setMqText(e.target.value)} rows={3} placeholder="Digite a pergunta aqui..." className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm border focus:border-[#003366] outline-none resize-none"/>
+               </div>
+
+               <div className="space-y-3 bg-blue-50/50 p-4 md:p-6 rounded-2xl border border-blue-100">
+                 <label className="text-[10px] font-black uppercase tracking-widest text-[#003366] block">Alternativas (Selecione a Correta)</label>
+                 {mqOptions.map((opt, i) => (
+                   <div key={i} className={`flex gap-3 items-center p-2 rounded-xl transition-all ${mqAnswer === i ? 'bg-emerald-50 border border-emerald-200' : ''}`}>
+                     <input 
+                       type="radio" 
+                       name="correctAnswer" 
+                       checked={mqAnswer === i} 
+                       onChange={() => setMqAnswer(i)} 
+                       className="w-5 h-5 accent-emerald-600 cursor-pointer"
+                     />
+                     <span className="font-black text-gray-400">{['A', 'B', 'C', 'D'][i]})</span>
+                     <input 
+                       type="text" 
+                       value={opt} 
+                       onChange={e => {
+                         const newOpts = [...mqOptions];
+                         newOpts[i] = e.target.value;
+                         setMqOptions(newOpts);
+                       }} 
+                       placeholder={`Alternativa ${i + 1}`} 
+                       className="w-full p-3 bg-white rounded-xl font-medium text-sm border outline-none focus:border-[#003366]"
+                     />
+                   </div>
+                 ))}
+               </div>
+
+               <div>
+                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Explicação / Feedback (Opcional)</label>
+                 <textarea value={mqExplanation} onChange={e => setMqExplanation(e.target.value)} rows={2} placeholder="Por que essa é a resposta certa?" className="w-full p-4 bg-gray-50 rounded-xl font-medium text-sm border focus:border-[#003366] outline-none resize-none"/>
+               </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 md:px-8 border-t bg-gray-50 flex justify-end gap-3 shrink-0">
+              <button onClick={() => setIsQuestionModalOpen(false)} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-200 transition-all">Cancelar</button>
+              <button onClick={handleSaveModalQuestion} className="px-6 py-3 rounded-xl font-black uppercase tracking-widest bg-[#003366] text-white hover:bg-[#D4A017] transition-all shadow-md">
+                Salvar Questão
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
