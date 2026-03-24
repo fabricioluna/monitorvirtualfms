@@ -5,18 +5,11 @@ import { firestoreDB, storage } from '../../firebase';
 import { collection, query, onSnapshot, doc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref as storageRef, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ROOMS } from '../../constants';
+import { formatFileSize } from '../../utils/formatters'; // <-- IMPORTAÇÃO AQUI
 
 interface AdminMaterialsProps {
   disciplines: SimulationInfo[];
 }
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-};
 
 const AdminMaterials: React.FC<AdminMaterialsProps> = ({ disciplines }) => {
   // ESTADOS LOCAIS
