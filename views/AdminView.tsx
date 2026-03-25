@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { Question, OsceStation, SimulationInfo, Summary, QuizResult, ReferenceMaterial, LabSimulation } from '../types.ts';
+import { Summary, Question, OsceStation, LabSimulation, ReferenceMaterial } from '../types.ts';
 import { Layers, BarChart3, FileText, ClipboardList, Stethoscope, Microscope, BookOpen } from 'lucide-react';
+
+// IMPORTAÇÃO DA NOSSA "NUVEM" DE DADOS E FIREBASE
+import { useData } from '../contexts/DataContext.tsx';
+import { db, ref, push, remove, set } from '../firebase.ts';
 
 // IMPORTAÇÕES DOS COMPONENTES MODULARIZADOS
 import AdminStats from '../components/admin/AdminStats.tsx';
@@ -12,64 +16,19 @@ import AdminThemes from '../components/admin/AdminThemes.tsx';
 import AdminReferences from '../components/admin/AdminReferences.tsx';
 
 interface AdminViewProps {
-  questions: Question[];
-  osceStations: OsceStation[];
-  disciplines: SimulationInfo[];
-  summaries: Summary[];
-  quizResults: QuizResult[];
-  labSimulations?: LabSimulation[];
-  onAddSummary: (s: Summary) => void;
-  onRemoveSummary: (id: string) => void;
-  onAddQuestions: (qs: Question[]) => void;
-  onUpdateQuestion: (q: Question) => void;
-  onAddOsceStations: (os: OsceStation[]) => void;
-  onAddLabSimulation?: (sim: LabSimulation) => void;
-  onRemoveLabSimulation?: (id: string) => void;
-  onRemoveQuestion: (id: string) => void;
-  onRemoveOsceStation: (id: string) => void;
-  onRemoveQuiz: (quizTitle: string, disciplineId?: string) => void; 
-  onClearDatabase: () => void;
-  onClearResults: () => void;
-  onClearQuestions: (disciplineId?: string) => void;
-  onClearOsce: (disciplineId?: string) => void;
-  onClearMaterials: (disciplineId?: string) => void;
-  onClearLab?: (disciplineId?: string) => void;
-  onAddTheme: (disciplineId: string, themeName: string) => void;
-  onRemoveTheme: (disciplineId: string, themeName: string) => void;
-  onUpdateReferences: (disciplineId: string, refs: ReferenceMaterial[]) => void;
-  onBack: () => void;
+  onBack: () => void; // A ÚNICA prop que o Admin precisa receber agora!
 }
 
-const AdminView: React.FC<AdminViewProps> = ({
-  questions,
-  osceStations,
-  disciplines,
-  quizResults,
-  labSimulations = [],
-  onAddQuestions,
-  onUpdateQuestion,
-  onAddOsceStations,
-  onAddLabSimulation, 
-  onRemoveQuestion,
-  onRemoveOsceStation,
-  onRemoveLabSimulation,
-  onRemoveQuiz, 
-  onClearDatabase,
-  onClearResults,
-  onClearQuestions,
-  onClearOsce,
-  onClearLab,
-  onAddTheme,
-  onRemoveTheme,
-  onUpdateReferences,
-  onBack
-}) => {
+const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
+  // 1. PUXANDO DADOS DIRETO DA NUVEM (Fim do Prop Drilling)
+  const { questions, osceStations, disciplines, summaries, quizResults, labSimulations } = useData();
+
   const [isAuthorized, setIsAuthorized] = useState(() => sessionStorage.getItem('fms_admin_auth') === 'true');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<'questions' | 'osce' | 'stats' | 'references' | 'materials' | 'themes' | 'lab'>('stats');
   
-  // ESTADOS GLOBAIS DE FILTRO DE ESTATÍSTICAS (Repassados para o AdminStats para manter estado ao mudar de aba)
+  // ESTADOS GLOBAIS DE FILTRO DE ESTATÍSTICAS
   const [statsRoomFilter, setStatsRoomFilter] = useState(''); 
   const [statsDiscFilter, setStatsDiscFilter] = useState('');
   const [statsTypeFilter, setStatsTypeFilter] = useState('');
@@ -85,15 +44,87 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
+  // =========================================================================
+  // 2. FUNÇÕES DE BANCO DE DADOS (Trazidas do App.tsx para cá)
+  // =========================================================================
+  
   const handleGlobalReset = () => {
     const pass = prompt("⚠️ AÇÃO DESTRUTIVA: Apagar absolutamente TODO o banco de dados?\n\nPara confirmar, digite a senha de administrador (fmst8):");
     if (pass === 'fmst8') {
-      onClearDatabase();
+      if (db) {
+        remove(ref(db, 'questions'));
+        remove(ref(db, 'summaries'));
+        remove(ref(db, 'osce'));
+        remove(ref(db, 'discipline_config'));
+        remove(ref(db, 'labSimulations')); 
+      }
       alert("✅ Banco de dados completamente resetado.");
     } else if (pass !== null) {
       alert("❌ Senha incorreta. Ação cancelada.");
     }
   };
+
+  const handleClearResults = () => db && remove(ref(db, 'quizResults'));
+
+  const handleClearQuestions = (discId?: string) => {
+    if (db) {
+      if (discId) {
+        questions.filter(q => q.disciplineId === discId).forEach(q => q.firebaseId && remove(ref(db, `questions/${q.firebaseId}`)));
+      } else {
+        remove(ref(db, 'questions'));
+      }
+    }
+  };
+
+  const handleClearOsce = (discId?: string) => {
+    if (db) {
+      if (discId) {
+        osceStations.filter(o => o.disciplineId === discId).forEach(o => o.firebaseId && remove(ref(db, `osce/${o.firebaseId}`)));
+      } else {
+        remove(ref(db, 'osce'));
+      }
+    }
+  };
+
+  const handleClearLab = (discId?: string) => {
+    if (db) {
+      if (discId) {
+        labSimulations.filter(s => s.disciplineId === discId).forEach(s => s.firebaseId && remove(ref(db, `labSimulations/${s.firebaseId}`)));
+      } else {
+        remove(ref(db, 'labSimulations'));
+      }
+    }
+  };
+
+  const handleAddTheme = (disciplineId: string, themeName: string) => {
+    const disc = disciplines.find(d => d.id === disciplineId);
+    if (!disc) return;
+    const newThemes = Array.from(new Set([...disc.themes, themeName]));
+    if (db) set(ref(db, `discipline_config/${disciplineId}/themes`), newThemes);
+  };
+
+  const handleRemoveTheme = (disciplineId: string, themeName: string) => {
+    const disc = disciplines.find(d => d.id === disciplineId);
+    if (!disc) return;
+    const newThemes = disc.themes.filter(t => t !== themeName);
+    if (db) set(ref(db, `discipline_config/${disciplineId}/themes`), newThemes);
+  };
+
+  const handleUpdateReferences = (disciplineId: string, refsList: ReferenceMaterial[]) => {
+    if (db) set(ref(db, `discipline_config/${disciplineId}/references`), refsList);
+  };
+
+  const handleRemoveQuiz = (quizTitle: string, discId?: string) => {
+    if (db) {
+      questions.forEach(q => {
+        if (q.quizTitle === quizTitle && (!discId || q.disciplineId === discId)) {
+          if (q.firebaseId) remove(ref(db, `questions/${q.firebaseId}`));
+        }
+      });
+    }
+  };
+
+  // =========================================================================
 
   if (!isAuthorized) {
     return (
@@ -123,7 +154,7 @@ const AdminView: React.FC<AdminViewProps> = ({
            </div>
         </div>
         <div className="flex gap-2">
-           <button onClick={onClearResults} className="bg-orange-100 text-orange-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-200 transition-all">Limpar Resultados</button>
+           <button onClick={handleClearResults} className="bg-orange-100 text-orange-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-200 transition-all">Limpar Resultados</button>
            <button onClick={handleGlobalReset} className="bg-red-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 shadow-lg transition-all">Resetar Banco Total</button>
         </div>
       </div>
@@ -176,11 +207,11 @@ const AdminView: React.FC<AdminViewProps> = ({
         <AdminQuestions 
           questions={questions}
           disciplines={disciplines}
-          onAddQuestions={onAddQuestions}
-          onUpdateQuestion={onUpdateQuestion}
-          onRemoveQuestion={onRemoveQuestion}
-          onClearQuestions={onClearQuestions}
-          onRemoveQuiz={onRemoveQuiz}
+          onAddQuestions={(qs) => db && qs.forEach(q => push(ref(db, 'questions'), q))}
+          onUpdateQuestion={(q) => { if (db && q.firebaseId) set(ref(db, `questions/${q.firebaseId}`), q); }}
+          onRemoveQuestion={(id) => { const q = questions.find(item => item.id === id); if (db && q?.firebaseId) remove(ref(db, `questions/${q.firebaseId}`)); }}
+          onClearQuestions={handleClearQuestions}
+          onRemoveQuiz={handleRemoveQuiz}
         />
       )}
 
@@ -188,9 +219,9 @@ const AdminView: React.FC<AdminViewProps> = ({
         <AdminLab 
           disciplines={disciplines}
           labSimulations={labSimulations}
-          onAddLabSimulation={onAddLabSimulation}
-          onRemoveLabSimulation={onRemoveLabSimulation}
-          onClearLab={onClearLab}
+          onAddLabSimulation={(sim) => db && push(ref(db, 'labSimulations'), sim)}
+          onRemoveLabSimulation={(id) => { const sim = labSimulations.find(item => item.id === id); if (db && sim?.firebaseId) remove(ref(db, `labSimulations/${sim.firebaseId}`)); }}
+          onClearLab={handleClearLab}
         />
       )}
 
@@ -198,24 +229,24 @@ const AdminView: React.FC<AdminViewProps> = ({
         <AdminOsce 
           disciplines={disciplines}
           osceStations={osceStations}
-          onAddOsceStations={onAddOsceStations}
-          onRemoveOsceStation={onRemoveOsceStation}
-          onClearOsce={onClearOsce}
+          onAddOsceStations={(os) => db && os.forEach(o => push(ref(db, 'osce'), o))}
+          onRemoveOsceStation={(id) => { const o = osceStations.find(item => item.id === id); if (db && o?.firebaseId) remove(ref(db, `osce/${o.firebaseId}`)); }}
+          onClearOsce={handleClearOsce}
         />
       )}
       
       {activeTab === 'themes' && (
         <AdminThemes 
           disciplines={disciplines}
-          onAddTheme={onAddTheme}
-          onRemoveTheme={onRemoveTheme}
+          onAddTheme={handleAddTheme}
+          onRemoveTheme={handleRemoveTheme}
         />
       )}
 
       {activeTab === 'references' && (
         <AdminReferences 
           disciplines={disciplines}
-          onUpdateReferences={onUpdateReferences}
+          onUpdateReferences={handleUpdateReferences}
         />
       )}
     </div>

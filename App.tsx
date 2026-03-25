@@ -17,16 +17,16 @@ import ShareMaterialView from './views/ShareMaterialView.tsx';
 import LabListView from './views/LabListView.tsx';
 import LabQuizView from './views/LabQuizView.tsx';
 
-import { ViewState, Summary, Question, OsceStation, LabSimulation, ReferenceMaterial } from './types.ts';
+import { ViewState, Question, OsceStation, LabSimulation } from './types.ts';
 import { ROOMS } from './constants.tsx';
-import { db, ref, push, remove, set } from './firebase.ts';
+import { db, ref, push } from './firebase.ts';
 
-// IMPORTAÇÃO DO NOSSO CUSTOM HOOK
-import { useFirebaseData } from './hooks/useFirebaseData.ts';
+// IMPORTAÇÃO DO NOSSO CONTEXTO GLOBAL
+import { DataProvider, useData } from './contexts/DataContext.tsx';
 
-const APP_VERSION = "6.3.0 - Arquitetura Limpa";
+const APP_VERSION = "6.4.0 - Arquitetura de Contexto";
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   // LÓGICA DE NAVEGAÇÃO E TELAS
   const [currentView, setCurrentView] = useState<ViewState>('room-selection');
   const [viewHistory, setViewHistory] = useState<ViewState[]>(['room-selection']);
@@ -39,7 +39,7 @@ const App: React.FC = () => {
   const [currentOsceAIStation, setCurrentOsceAIStation] = useState<OsceStation | null>(null);
   const [currentLabSimulation, setCurrentLabSimulation] = useState<LabSimulation | null>(null); 
 
-  // CONSUMINDO OS DADOS DO FIREBASE ATRAVÉS DO HOOK
+  // CONSUMINDO OS DADOS DA NUVEM (CONTEXT API)
   const { 
     isLoading, 
     isOnline, 
@@ -47,9 +47,8 @@ const App: React.FC = () => {
     summaries, 
     questions, 
     osceStations, 
-    quizResults, 
     labSimulations 
-  } = useFirebaseData();
+  } = useData();
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -106,24 +105,6 @@ const App: React.FC = () => {
       }
       return newHistory;
     });
-  };
-
-  const handleAddTheme = (disciplineId: string, themeName: string) => {
-    const disc = disciplines.find(d => d.id === disciplineId);
-    if (!disc) return;
-    const newThemes = Array.from(new Set([...disc.themes, themeName]));
-    if (db) set(ref(db, `discipline_config/${disciplineId}/themes`), newThemes);
-  };
-
-  const handleRemoveTheme = (disciplineId: string, themeName: string) => {
-    const disc = disciplines.find(d => d.id === disciplineId);
-    if (!disc) return;
-    const newThemes = disc.themes.filter(t => t !== themeName);
-    if (db) set(ref(db, `discipline_config/${disciplineId}/themes`), newThemes);
-  };
-
-  const handleUpdateReferences = (disciplineId: string, refsList: ReferenceMaterial[]) => {
-    if (db) set(ref(db, `discipline_config/${disciplineId}/references`), refsList);
   };
 
   const handleSelectDiscipline = (id: string) => {
@@ -226,7 +207,6 @@ const App: React.FC = () => {
           <SummariesListView 
             disciplineId={selectedDisciplineId} 
             disciplines={disciplines} 
-            summaries={summaries} 
             onBack={handleBack}
             onShareClick={() => handleNavigate('share-material')} 
           />
@@ -303,95 +283,11 @@ const App: React.FC = () => {
           />
         )}
 
+        {/* OLHE A DIFERENÇA DO ADMINVIEW AGORA! */}
         {currentView === 'admin' && (
-          <AdminView 
-            questions={questions}
-            osceStations={osceStations}
-            disciplines={disciplines}
-            summaries={summaries}
-            quizResults={quizResults}
-            labSimulations={labSimulations} 
-            
-            onAddSummary={(s) => db && push(ref(db, 'summaries'), s)}
-            onRemoveSummary={(id) => { const s = summaries.find(item => item.id === id); if (db && s?.firebaseId) remove(ref(db, `summaries/${s.firebaseId}`)); }}
-            onAddQuestions={(qs) => db && qs.forEach(q => push(ref(db, 'questions'), q))}
-            
-            onUpdateQuestion={(q) => {
-              if (db && q.firebaseId) {
-                set(ref(db, `questions/${q.firebaseId}`), q);
-              }
-            }}
-            
-            onAddOsceStations={(os) => db && os.forEach(o => push(ref(db, 'osce'), o))}
-            
-            onAddLabSimulation={(sim) => db && push(ref(db, 'labSimulations'), sim)}
-            onRemoveLabSimulation={(id) => { const sim = labSimulations.find(item => item.id === id); if (db && sim?.firebaseId) remove(ref(db, `labSimulations/${sim.firebaseId}`)); }}
-            onClearLab={(discId) => {
-              if (db) {
-                if (discId) {
-                  labSimulations.filter(s => s.disciplineId === discId).forEach(s => s.firebaseId && remove(ref(db, `labSimulations/${s.firebaseId}`)));
-                } else {
-                  remove(ref(db, 'labSimulations'));
-                }
-              }
-            }}
-
-            onRemoveQuestion={(id) => { const q = questions.find(item => item.id === id); if (db && q?.firebaseId) remove(ref(db, `questions/${q.firebaseId}`)); }}
-            onRemoveOsceStation={(id) => { const o = osceStations.find(item => item.id === id); if (db && o?.firebaseId) remove(ref(db, `osce/${o.firebaseId}`)); }}
-            
-            onRemoveQuiz={(quizTitle, discId) => {
-              if (db) {
-                questions.forEach(q => {
-                  if (q.quizTitle === quizTitle && (!discId || q.disciplineId === discId)) {
-                    if (q.firebaseId) remove(ref(db, `questions/${q.firebaseId}`));
-                  }
-                });
-              }
-            }}
-
-            onClearDatabase={() => {
-              if (db) {
-                remove(ref(db, 'questions'));
-                remove(ref(db, 'summaries'));
-                remove(ref(db, 'osce'));
-                remove(ref(db, 'discipline_config'));
-                remove(ref(db, 'labSimulations')); 
-              }
-            }}
-            onClearResults={() => db && remove(ref(db, 'quizResults'))}
-            onClearQuestions={(discId) => {
-              if (db) {
-                if (discId) {
-                  questions.filter(q => q.disciplineId === discId).forEach(q => q.firebaseId && remove(ref(db, `questions/${q.firebaseId}`)));
-                } else {
-                  remove(ref(db, 'questions'));
-                }
-              }
-            }}
-            onClearOsce={(discId) => {
-              if (db) {
-                if (discId) {
-                  osceStations.filter(o => o.disciplineId === discId).forEach(o => o.firebaseId && remove(ref(db, `osce/${o.firebaseId}`)));
-                } else {
-                  remove(ref(db, 'osce'));
-                }
-              }
-            }}
-            onClearMaterials={(discId) => {
-              if (db) {
-                if (discId) {
-                  summaries.filter(s => s.disciplineId === discId).forEach(s => s.firebaseId && remove(ref(db, `summaries/${s.firebaseId}`)));
-                } else {
-                  remove(ref(db, 'summaries'));
-                }
-              }
-            }}
-            onAddTheme={handleAddTheme}
-            onRemoveTheme={handleRemoveTheme}
-            onUpdateReferences={handleUpdateReferences}
-            onBack={handleBack}
-          />
+          <AdminView onBack={handleBack} />
         )}
+
       </div>
 
       <footer className="bg-white border-t py-8 flex flex-col items-center gap-2 mt-auto text-center px-4">
@@ -403,6 +299,15 @@ const App: React.FC = () => {
         <div className="text-[8px] text-gray-300 font-black uppercase tracking-tighter">Build {APP_VERSION}</div>
       </footer>
     </div>
+  );
+};
+
+// Envolvendo o aplicativo com o Provedor de Dados
+const App: React.FC = () => {
+  return (
+    <DataProvider>
+      <AppContent />
+    </DataProvider>
   );
 };
 
