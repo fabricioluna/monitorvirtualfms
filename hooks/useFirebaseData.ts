@@ -25,7 +25,7 @@ export const useFirebaseData = () => {
       setIsOnline(snap.val() === true);
     });
 
-    // Carregar configurações das disciplinas (temas, referências extras e STATUS)
+    // Carregar configurações das disciplinas (temas, referências extras, STATUS e FEATURES BLOQUEADAS)
     onValue(ref(db, 'discipline_config'), (snap) => {
       const config = snap.val();
       if (config) {
@@ -36,7 +36,8 @@ export const useFirebaseData = () => {
               ...disc,
               themes: Array.isArray(dConf.themes) ? dConf.themes : disc.themes,
               references: Array.isArray(dConf.references) ? dConf.references : disc.references,
-              status: dConf.status ? dConf.status : disc.status // <-- AGORA LÊ O STATUS OFICIAL
+              status: dConf.status ? dConf.status : disc.status,
+              lockedFeatures: Array.isArray(dConf.lockedFeatures) ? dConf.lockedFeatures : [] // <-- NOVO: Lê as funcionalidades bloqueadas
             };
           }
           return disc;

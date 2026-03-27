@@ -126,10 +126,29 @@ const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // NOVO: Função que alterna o status oficial da disciplina
   const handleToggleStatus = (disciplineId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'locked' : 'active';
     if (db) set(ref(db, `discipline_config/${disciplineId}/status`), newStatus);
+  };
+
+  // NOVO: Função para alternar funcionalidades individuais
+  const handleToggleFeature = (disciplineId: string, featureId: string, isCurrentlyLocked: boolean) => {
+    const disc = disciplines.find(d => d.id === disciplineId);
+    if (!disc) return;
+
+    let newLockedFeatures = disc.lockedFeatures ? [...disc.lockedFeatures] : [];
+
+    if (isCurrentlyLocked) {
+      // Se já estava bloqueado, removemos da lista de bloqueio (liberamos)
+      newLockedFeatures = newLockedFeatures.filter(id => id !== featureId);
+    } else {
+      // Se não estava na lista, adicionamos (bloqueamos)
+      if (!newLockedFeatures.includes(featureId)) {
+        newLockedFeatures.push(featureId);
+      }
+    }
+
+    if (db) set(ref(db, `discipline_config/${disciplineId}/lockedFeatures`), newLockedFeatures);
   };
 
   // =========================================================================
@@ -208,11 +227,12 @@ const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
         />
       )}
 
-      {/* Renderiza aba de controle de acessos */}
+      {/* Renderiza aba de controle de acessos com as duas funções de toggle */}
       {activeTab === 'access' && (
         <AdminDisciplines 
           disciplines={disciplines}
           onToggleStatus={handleToggleStatus}
+          onToggleFeature={handleToggleFeature}
         />
       )}
 

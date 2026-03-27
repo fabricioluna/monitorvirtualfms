@@ -56,6 +56,7 @@ export interface SimulationInfo {
   status: 'active' | 'locked' | 'coming-soon'; // ÚNICA FONTE DE VERDADE AGORA
   themes: string[];
   references?: ReferenceMaterial[];
+  lockedFeatures?: string[]; // NOVO: Controle granular de botões/funcionalidades bloqueadas
 }
 
 export interface Summary {
