@@ -25,6 +25,12 @@ interface AdminStatsProps {
   setStatsQuizTitleFilter: (val: string) => void;
 }
 
+// Tipo para armazenar imagem Base64 e proporção original
+interface PdfImage {
+  dataUrl: string;
+  ratio: number; 
+}
+
 const AdminStats: React.FC<AdminStatsProps> = ({
   quizResults,
   questions,
@@ -44,7 +50,33 @@ const AdminStats: React.FC<AdminStatsProps> = ({
   
   // ESTADO PARA MÚLTIPLA ESCOLHA DE SIMULADOS
   const [selectedQuizzes, setSelectedQuizzes] = useState<string[]>([]);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // NOVO: Controla a abertura da lista suspensa
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); 
+
+  // ESTADO PARA ARMAZENAR A LOGO E SUA PROPORÇÃO PARA O PDF
+  const [pdfLogo, setPdfLogo] = useState<PdfImage | null>(null);
+
+  // 0. PREPARA A LOGO DIRETO DA RAIZ (/img/logo.png) E CALCULA PROPORÇÃO
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = '/img/logo.png'; 
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        setPdfLogo({
+          dataUrl: canvas.toDataURL('image/png'),
+          ratio: img.width / img.height 
+        });
+      }
+    };
+    img.onerror = () => {
+      console.warn("Não foi possível carregar a logo em /img/logo.png para o PDF.");
+    };
+  }, []);
 
   // FUNÇÃO PARA APAGAR UM RESULTADO DO FIREBASE
   const handleDeleteResult = (id?: string) => {
@@ -77,7 +109,6 @@ const AdminStats: React.FC<AdminStatsProps> = ({
   // 3. CALCULA A ESTATÍSTICA SOMENTE DOS QUE ESTÃO "TICADOS"
   const analytics = useMemo(() => {
     const filteredResults = quizResults.filter(qr => {
-      // Filtros de Sala, Disciplina, Tipo
       if (statsRoomFilter) {
         const disc = disciplines.find(d => d.id === qr.discipline);
         if (!disc || disc.roomId !== statsRoomFilter) return false;
@@ -85,14 +116,12 @@ const AdminStats: React.FC<AdminStatsProps> = ({
       if (statsDiscFilter && qr.discipline !== statsDiscFilter) return false;
       if (statsTypeFilter && qr.type !== statsTypeFilter) return false;
       
-      // FILTRO MULTI-CHECKBOX DOS SIMULADOS
       if (qr.quizTitle) {
         if (!selectedQuizzes.includes(qr.quizTitle)) return false;
       } else {
         if (selectedQuizzes.length !== availableStatTitles.length) return false;
       }
 
-      // RESOLUÇÃO DA DATA DO RESULTADO PARA O FILTRO DE PERÍODO
       let timeInMillis = qr.createdAt;
       if (timeInMillis && typeof timeInMillis === 'object' && (timeInMillis as any).seconds) {
         timeInMillis = (timeInMillis as any).seconds * 1000;
@@ -239,7 +268,7 @@ const AdminStats: React.FC<AdminStatsProps> = ({
   }, [quizResults, questions, labSimulations, statsRoomFilter, statsDiscFilter, statsTypeFilter, selectedQuizzes, startDate, endDate, disciplines, availableStatTitles.length]);
 
   // ============================================================================
-  // FUNÇÃO DE GERAÇÃO DO RELATÓRIO PDF COM LOGO
+  // FUNÇÃO DE GERAÇÃO DO RELATÓRIO PDF (ESPAÇO OTIMIZADO)
   // ============================================================================
   const handleGeneratePDF = () => {
     if (analytics.totalSimulations === 0) {
@@ -248,7 +277,8 @@ const AdminStats: React.FC<AdminStatsProps> = ({
     }
 
     const doc = new jsPDF();
-    
+    const pageWidth = doc.internal.pageSize.width; 
+
     const roomName = ROOMS.find(r => r.id === statsRoomFilter)?.name || 'Todas as Turmas (Visão Geral)';
     const discName = disciplines.find(d => d.id === statsDiscFilter)?.title || 'Todas as Disciplinas';
     const typeName = statsTypeFilter === 'teorico' ? 'Simulados Teóricos' : statsTypeFilter === 'laboratorio' ? 'Laboratórios Virtuais' : statsTypeFilter === 'osce' ? 'OSCE Clínico' : 'Todas as Modalidades';
@@ -261,68 +291,86 @@ const AdminStats: React.FC<AdminStatsProps> = ({
           ? selectedQuizzes.join(', ') 
           : `${selectedQuizzes.length} simulados combinados`;
 
-    // CABEÇALHO
-    doc.setFillColor(0, 51, 102); 
-    doc.rect(0, 0, 210, 42, 'F');
+    // --- CABEÇALHO COMPACTO ---
+    let textStartX = pageWidth / 2;
+    let titleAlign = 'center';
+    let headerHeight = 30; // Altura base muito menor
+
+    // Logo
+    if (pdfLogo) {
+      const targetWidth = 28; // Reduzimos de 35 para 28 para não empurrar muito a página
+      const targetHeight = targetWidth / pdfLogo.ratio;
+      
+      // Logo colada na margem superior (Y=10)
+      doc.addImage(pdfLogo.dataUrl, 'PNG', 14, 10, targetWidth, targetHeight);
+      
+      textStartX = 48; // Texto logo após a logo
+      titleAlign = 'left';
+      headerHeight = Math.max(30, 10 + targetHeight + 4); // Margem inferior de apenas 4px
+    }
     
-    doc.setFillColor(212, 160, 23); 
-    doc.circle(20, 20, 8, 'F'); 
-    doc.setTextColor(255, 255, 255);
+    // Título Principal
+    doc.setFontSize(16); // Reduzido de 18 para 16 (compacto e elegante)
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("LM", 16.5, 21.5); 
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.text("LUNA MEDCLASS", 32, 21);
+    doc.setTextColor(0, 51, 102); 
     
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    doc.text("Relatório Executivo de Learning Analytics", 32, 28);
+    // Alinhamento vertical do título com a logo
+    let textY = 20;
+    if (pdfLogo) {
+       textY = 10 + ((28 / pdfLogo.ratio) / 2) + 3; 
+    }
     
-    doc.setFontSize(9);
-    doc.setTextColor(212, 160, 23); 
-    doc.text(`Emitido em: ${new Date().toLocaleString()}`, 135, 28);
+    doc.text("Relatório Executivo de Learning Analytics", textStartX, textY, { align: titleAlign as any });
 
-    // INFO FILTROS
+    // Linha separadora bem colada no título
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, headerHeight, 196, headerHeight); 
+
+    // --- INFO FILTROS (Sem "espaço morto") ---
+    const filterStartY = headerHeight + 6; // Apenas 6px de distância da linha
+    
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
+    doc.setFontSize(10); // Reduzido para caber melhor
     doc.setFont("helvetica", "bold");
-    doc.text("Parâmetros do Relatório", 14, 52);
+    doc.text("Parâmetros do Relatório", 14, filterStartY);
     
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`Turma/Sala: ${roomName}`, 14, 58);
-    doc.text(`Módulo/Disciplina: ${discName}`, 14, 64);
+    doc.text(`Turma/Sala: ${roomName}`, 14, filterStartY + 5);
+    doc.text(`Módulo/Disciplina: ${discName}`, 14, filterStartY + 10);
     
     const periodoLabel = (startDate || endDate) 
-        ? `${startDate ? new Date(startDate+'T00:00:00').toLocaleDateString() : 'Início'} até ${endDate ? new Date(endDate+'T00:00:00').toLocaleDateString() : 'Hoje'}`
+        ? `${startDate ? new Date(startDate+'T00:00:00').toLocaleDateString('pt-BR') : 'Início'} até ${endDate ? new Date(endDate+'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje'}`
         : 'Histórico Completo';
 
-    doc.text(`Modalidade: ${typeName}`, 110, 58);
-    doc.text(`Escopo: ${quizFilterLabel}`, 110, 64);
-    doc.text(`Período de Análise: ${periodoLabel}`, 110, 70);
+    doc.text(`Modalidade: ${typeName}`, 110, filterStartY + 5);
+    doc.text(`Escopo: ${quizFilterLabel}`, 110, filterStartY + 10);
+    doc.text(`Período de Análise: ${periodoLabel}`, 110, filterStartY + 15);
 
+    const endFilterLineY = filterStartY + 18; // Fechou o bloco de filtros rápido
     doc.setDrawColor(200, 200, 200);
-    doc.line(14, 74, 196, 74); 
+    doc.line(14, endFilterLineY, 196, endFilterLineY); 
 
-    // MÉTRICAS GLOBAIS
-    doc.setFontSize(14);
+    // --- MÉTRICAS GLOBAIS ---
+    const metricsY = endFilterLineY + 6; // Apenas 6px de distância
+    
+    doc.setFontSize(12); // Título das métricas ligeiramente menor
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 51, 102);
-    doc.text("Métricas Globais de Engajamento", 14, 84);
+    doc.text("Métricas Globais de Engajamento", 14, metricsY);
     
-    doc.setFontSize(10);
+    doc.setFontSize(9); // Fontes padronizadas
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
-    doc.text(`• Total de Simulados Realizados: ${analytics.totalSimulations}`, 14, 92);
-    doc.text(`• Volume de Questões Analisadas: ${analytics.totalQuestionsAnswered}`, 14, 98);
-    doc.text(`• Aproveitamento (Nota Média): ${analytics.globalAccuracy}%`, 110, 92);
-    doc.text(`• Pacing (Tempo Médio/Questão): ${analytics.avgTimeFormatted}`, 110, 98);
+    doc.text(`• Total de Simulados Realizados: ${analytics.totalSimulations}`, 14, metricsY + 6);
+    doc.text(`• Volume de Questões Analisadas: ${analytics.totalQuestionsAnswered}`, 14, metricsY + 11);
+    doc.text(`• Aproveitamento (Nota Média): ${analytics.globalAccuracy}%`, 110, metricsY + 6);
+    doc.text(`• Pacing (Tempo Médio/Questão): ${analytics.avgTimeFormatted}`, 110, metricsY + 11);
 
-    let currentY = 112;
+    // Começa a tabela bem mais em cima agora
+    let currentY = metricsY + 18;
 
-    // DESEMPENHO POR TEMA
+    // --- DESEMPENHO POR TEMA ---
     const themeBody = [
       ...analytics.criticalThemes.map(t => [t.theme, t.total, `${t.accuracy}%`, 'Crítico']),
       ...analytics.attentionThemes.map(t => [t.theme, t.total, `${t.accuracy}%`, 'Atenção']),
@@ -330,69 +378,84 @@ const AdminStats: React.FC<AdminStatsProps> = ({
     ];
 
     if (themeBody.length > 0) {
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 51, 102);
       doc.text("Mapeamento de Lacunas (Por Tema)", 14, currentY);
       
       autoTable(doc, {
-        startY: currentY + 5,
+        startY: currentY + 3, // Tabela começa mais colada no título
         head: [['Tema / Eixo Analisado', 'Questões Resolvidas', 'Aproveitamento', 'Status Atual']],
         body: themeBody,
         theme: 'grid',
-        headStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
-        styles: { fontSize: 9 },
-        willDrawCell: (data) => {
+        headStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold', fontSize: 9, halign: 'center' },
+        styles: { fontSize: 8, cellPadding: 2 }, // Células mais compactas
+        columnStyles: {
+            0: { halign: 'left' },
+            1: { halign: 'center' },
+            2: { halign: 'center' },
+            3: { halign: 'center' }
+        },
+        didParseCell: (data) => {
           if (data.section === 'body' && data.column.index === 3) {
-            if (data.cell.raw === 'Crítico') doc.setTextColor(220, 38, 38); 
-            if (data.cell.raw === 'Atenção') doc.setTextColor(217, 119, 6); 
-            if (data.cell.raw === 'Dominado') doc.setTextColor(5, 150, 105); 
+            if (data.cell.raw === 'Crítico') data.cell.styles.textColor = [220, 38, 38]; 
+            if (data.cell.raw === 'Atenção') data.cell.styles.textColor = [217, 119, 6]; 
+            if (data.cell.raw === 'Dominado') data.cell.styles.textColor = [5, 150, 105]; 
           }
         }
       });
-      currentY = (doc as any).lastAutoTable.finalY + 15;
+      
+      currentY = (doc as any).lastAutoTable?.finalY || (currentY + 20);
+      currentY += 10;
     }
 
-    // TOP 10 MAIORES DÉFICITS
+    // --- TOP 10 MAIORES DÉFICITS ---
     if (analytics.hardestQuestions.length > 0) {
-      if (currentY > 230) {
+      if (currentY > 250) { // Tolerância maior antes de quebrar a página
          doc.addPage();
-         currentY = 20;
+         currentY = 15;
       }
 
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(220, 38, 38); 
       doc.text("Top 10: Questões Críticas (Maior Incidência de Erros)", 14, currentY);
 
       const questionsBody = analytics.hardestQuestions.map((q, i) => [
         i + 1,
-        q.text.length > 75 ? q.text.substring(0, 75) + '...' : q.text,
+        q.text.length > 85 ? q.text.substring(0, 85) + '...' : q.text,
         q.misses,
         `${q.errorRate}%`
       ]);
 
       autoTable(doc, {
-        startY: currentY + 5,
+        startY: currentY + 3,
         head: [['#', 'Tópico / Questão (Resumo)', 'Erros Absolutos', 'Taxa de Erro']],
         body: questionsBody,
         theme: 'grid',
-        headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold' },
-        styles: { fontSize: 8 },
+        headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold', fontSize: 9, halign: 'center' },
+        styles: { fontSize: 8, cellPadding: 2 },
         columnStyles: {
-          0: { cellWidth: 10 },
-          1: { cellWidth: 120 }
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 130 },
+          2: { halign: 'center' },
+          3: { halign: 'center' }
         }
       });
     }
 
-    // RODAPÉ
+    // --- RODAPÉ ---
     const pageCount = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
+      
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, 285, 196, 285);
+
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text("Gerado automaticamente via Luna MedClass Portal", 14, 290);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 14, 290);
       doc.text(`Página ${i} de ${pageCount}`, 196, 290, { align: 'right' });
     }
 
@@ -402,7 +465,7 @@ const AdminStats: React.FC<AdminStatsProps> = ({
   return (
     <div className="animate-in fade-in duration-500 space-y-8">
       
-      {/* CABEÇALHO */}
+      {/* CABEÇALHO HTML */}
       <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm gap-4">
         <div>
           <h3 className="text-xl font-black text-[#003366] uppercase tracking-tighter">Filtros de Análise</h3>
@@ -477,7 +540,7 @@ const AdminStats: React.FC<AdminStatsProps> = ({
           </select>
         </div>
 
-        {/* NOVO MENU SUSPENSO (CUSTOM DROPDOWN) PARA MÚLTIPLA ESCOLHA */}
+        {/* MENU SUSPENSO MULTI-ESCOLHA */}
         <div className="flex-1 min-w-[250px] relative">
           <label className="text-[10px] font-black uppercase tracking-widest text-[#003366] mb-2 flex items-center gap-1">
             <CheckSquare size={12}/> Selecionar Simulados
@@ -499,14 +562,12 @@ const AdminStats: React.FC<AdminStatsProps> = ({
             <ChevronDown size={16} className={`text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </div>
 
-          {/* O MENU SUSPENSO QUE APARECE AO CLICAR */}
           {isDropdownOpen && (
             <>
-              {/* Overlay invisível para fechar ao clicar fora */}
+              {/* Overlay invisível */}
               <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)}></div>
               
               <div className="absolute top-full left-0 mt-2 w-full bg-white border border-gray-200 shadow-2xl rounded-2xl z-50 overflow-hidden">
-                {/* Cabeçalho do Dropdown com botões de ação */}
                 <div className="flex justify-between items-center p-3 border-b border-gray-100 bg-gray-50">
                   <button 
                     onClick={() => setSelectedQuizzes([...availableStatTitles])}
@@ -522,7 +583,6 @@ const AdminStats: React.FC<AdminStatsProps> = ({
                   </button>
                 </div>
 
-                {/* Lista rolável com os checkboxes */}
                 <div className="max-h-60 overflow-y-auto p-2">
                   {availableStatTitles.length === 0 ? (
                     <p className="text-xs text-center text-gray-400 p-4 font-medium">Não há simulados com os filtros atuais.</p>
